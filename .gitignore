@@ -1,0 +1,13 @@
+# Ignore vim/YouCompleteMe settings
+.cache/
+.vimrc
+compile_commands.json
+
+# Build directories and binary files
+build/
+out/
+cmake-build-*/
+conan-cache/
+
+# User spesific settings
+CMakeUserPresets.json
