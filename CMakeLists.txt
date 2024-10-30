@@ -10,7 +10,7 @@ SET(CMAKE_CXX_EXTENSIONS OFF)
 INCLUDE(cmake/Options.cmake)
 
 # Set the project name to your project name, my project isn't very descriptive
-PROJECT(myproject
+PROJECT(TypeSafeMessageParser
         LANGUAGES CXX
         VERSION 0.0.1)
 
@@ -66,18 +66,8 @@ ENABLE_PCH()
 
 ADD_SUBDIRECTORY(src)
 
-IF(CMAKE_CROSSCOMPILING)
-    MESSAGE("Test are not built for GCC ARM toolchain!")
-    RETURN()
-ENDIF()
-
 IF(ENABLE_TESTING)
     ENABLE_TESTING()
     MESSAGE("Building Tests. Be sure to check out test/constexpr_tests for constexpr testing")
     ADD_SUBDIRECTORY(test)
-ENDIF()
-
-IF(ENABLE_FUZZING)
-    MESSAGE("Building Fuzz Tests, using fuzzing sanitizer https://www.llvm.org/docs/LibFuzzer.html")
-    ADD_SUBDIRECTORY(fuzz_test)
 ENDIF()

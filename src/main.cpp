@@ -1,56 +1,77 @@
-#include "include/version.hpp"
-#include <docopt/docopt.h>
-#include <functional>
-#include <iostream>
-#include <spdlog/spdlog.h>
-#include <string>
+#include <MessageParser.h>
 
-static constexpr auto USAGE =
-  R"(Naval Fate.
-
-    Usage:
-          naval_fate ship new <name>...
-          naval_fate ship <name> move <x> <y> [--speed=<kn>]
-          naval_fate ship shoot <x> <y>
-          naval_fate mine (set|remove) <x> <y> [--moored | --drifting]
-          naval_fate (-h | --help)
-          naval_fate --version
- Options:
-          -h --help     Show this screen.
-          --version     Show version.
-          --speed=<kn>  Speed in knots [default: 10].
-          --moored      Moored (anchored) mine.
-          --drifting    Drifting mine.
-)";
-
-int main(int argc, const char **argv)
+// example
+enum class Status : std::uint8_t
 {
-    fmt::print(R"(Version
-    Major {}
-    Minor {}
-    Patch {}
-    Git Hash {}
-)",
-      Version::Major,
-      Version::Minor,
-      Version::Patch,
-      Version::GitHash);
+    OK,
+    FAILED
+};
 
-    std::map<std::string, docopt::value> args = docopt::docopt(USAGE,
-      { std::next(argv), std::next(argv, argc) },
-      true,// show help if requested
-      "Naval Fate 2.0");// version string
+enum class Motor : std::uint8_t
+{
+    OK,
+    FAILED,
+    UNKNOWN,
+    ERROR,
+    SUCCESS
+};
 
-    for (auto const &arg : args) {
-        fmt::print(R"(
-{} {}
-)",
-          arg.first,
-          arg.second.asString());
+enum class Fan : std::uint8_t
+{
+    OK,
+    FAILED
+};
+
+enum class Timer : std::uint8_t
+{
+    OK,
+    FAILED,
+    STARTED,
+    STOPPED,
+    RESET,
+    EXIT
+};
+
+// example message definition
+struct DataFields
+{
+    static constexpr auto A = FieldConfiguration<0, Status>{};
+    static constexpr auto B = FieldConfiguration<1, Motor, FieldRanges::MinMaxRange{.min=Motor::OK, .max=Motor::SUCCESS}>{};
+    static constexpr auto C = FieldConfiguration<2, Fan>{};
+    static constexpr auto D = FieldConfiguration<3, std::uint8_t>{};
+    static constexpr auto E = FieldConfiguration<4, std::uint8_t>{};
+    static constexpr auto F = FieldConfiguration<5, std::uint8_t>{};
+    static constexpr auto G = FieldConfiguration<6, std::uint8_t>{};
+    static constexpr auto H = FieldConfiguration<7, Timer, FieldRanges::SpecificRange{Timer::OK, Timer::EXIT}>{};
+    static constexpr auto I = FieldConfiguration<8, uint16_t, FieldRanges::MinMaxRange{.min=1000, .max=65000}>{};
+};
+
+// Message type
+struct Message
+{
+    uint16_t id;
+    std::array<std::uint8_t, 10> msg;
+};
+
+int main()
+{
+    constexpr Message msg{.id=42, .msg={0x1, 0x3, 0x1, 0x0, 0x4, 0x5, 0xA, 0x5, 0xCF, 0xFF}};
+    MessageParser::parseMessage(msg, DataFields::A, DataFields::B, DataFields::C, DataFields::D, DataFields::E, DataFields::F, DataFields::G, DataFields::H, DataFields::I);
+    constexpr auto type = MessageParser::convertByteType(msg, DataFields::B);
+    if constexpr (type.has_value())
+    {
+        spdlog::info("type: {}", static_cast<uint32_t>(type.value()));
     }
 
-    // Use the default logger (stdout, multi-threaded, colored)
-    spdlog::info("Hello, {}!", "World");
-
-    fmt::print("Hello, from {}\n", "{fmt}");
+    constexpr auto typeH = MessageParser::convertByteType(msg, DataFields::H);
+    if constexpr (typeH.has_value())
+    {
+        spdlog::info("typeH: {}", static_cast<uint32_t>(typeH.value()));
+    }
+    constexpr auto typeI = MessageParser::convertByteType(msg, DataFields::I);
+    if constexpr (typeI.has_value())
+    {
+        spdlog::info("typeI: {}", static_cast<uint32_t>(typeI.value()));
+    }
+    return 0;
 }

@@ -27,12 +27,3 @@ OPTION(ENABLE_IPO "Enable Interprocedural Optimization, aka Link Time Optimizati
 OPTION(WARNINGS_AS_ERRORS "Treat compiler warnings as errors" ON)
 OPTION(BUILD_SHARED_LIBS "Enable compilation of shared libraries" OFF)
 OPTION(ENABLE_TESTING "Enable Test Builds" ON)
-OPTION(ENABLE_FUZZING "Enable Fuzzing Builds" OFF)
-
-# examples
-OPTION(CPP_STARTER_USE_SML "Enable compilation of SML sample" OFF)
-OPTION(CPP_STARTER_USE_BOOST_BEAST "Enable compilation of boost beast sample" OFF)
-OPTION(CPP_STARTER_USE_CROW "Enable compilation of crow sample" OFF)
-OPTION(CPP_STARTER_USE_CPPZMQ_PROTO "Enable compilation of protobuf and cppzmq sample" OFF)
-OPTION(CPP_STARTER_USE_EMBEDDED_TOOLCHAIN "Enable compilation of an example cortex m4 project" OFF)
-OPTION(CPP_STARTER_USE_QT "Enable compilation of an example QT project" OFF)

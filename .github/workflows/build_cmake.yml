@@ -10,7 +10,7 @@ env:
 jobs:
   docker:
     name: Test docker images
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
 
@@ -32,12 +32,12 @@ jobs:
     strategy:
       fail-fast: false  # 'false' means Don't stop matrix workflows even if some matrix entry fails.
       matrix:
-        os: [ubuntu-22.04]
+        os: [ubuntu-24.04]
         buildtype: [debug]
-        compiler: [ {name: 'GCC 10', preset: gcc-10, pkgs: 'gcc-10 g++-10 lib32gcc-10-dev gcc-multilib'},
-                    {name: 'GCC 11', preset: gcc-11, pkgs: 'gcc-11 g++-11 lib32gcc-11-dev gcc-multilib'},
-                    {name: 'GCC 12', preset: gcc-12, pkgs: 'gcc-12 g++-12 lib32gcc-12-dev gcc-multilib'},
-                    {name: 'Clang 15', preset: clang-15, pkgs: 'clang-15 llvm-15'}
+        compiler: [ {name: 'GCC 14', preset: gcc-14, pkgs: 'gcc-14 g++-14 lib32gcc-14-dev gcc-multilib'},
+                    {name: 'Clang 17', preset: clang-17, pkgs: 'clang-17 llvm-17'},
+                    {name: 'Clang 18', preset: clang-18, pkgs: 'clang-18 llvm-18'},
+                    {name: 'Clang 19', preset: clang-19, pkgs: 'clang-19 llvm-19'}
                   ]
         cxx: [17, 20]
 
@@ -80,70 +80,15 @@ jobs:
       shell: bash
       run: ctest --preset test-unixlike-${{ matrix.compiler.preset }}-${{ matrix.buildtype }}
 
-  # because of an bug in github actions: https://github.com/actions/runner-images/issues/8659
-  # we use clang 12, clang 13, clang 14 only in C++17 mode
-  linux-clang-smaller-15:
-    name: ${{ matrix.os }}, ${{ matrix.compiler.name }}, C++${{ matrix.cxx }}, ${{ matrix.buildtype }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false  # 'false' means Don't stop matrix workflows even if some matrix entry fails.
-      matrix:
-        os: [ubuntu-22.04]
-        buildtype: [debug]
-        compiler: [ {name: 'Clang 12', preset: clang-12, pkgs: 'clang-12 llvm-12'},
-                    {name: 'Clang 13', preset: clang-13, pkgs: 'clang-13 llvm-13'},
-                    {name: 'Clang 14', preset: clang-14, pkgs: 'clang-14 llvm-14'}
-                  ]
-        cxx: [17]
-
-    steps:
-    - uses: actions/checkout@v4
-
-    - name: Cache
-      uses: actions/cache@v4
-      env:
-        cache-name: cache-conan-modules
-      with:
-        path: |
-          ${{ env.CONAN_USER_HOME }}
-          ~/.cache/pip
-          ~/.ccache
-        key: ${{ runner.os }}-${{ matrix.cxx }}-${{ matrix.compiler.preset }}-${{ matrix.buildtype }}-${{ hashFiles('conanfile.py') }}
-
-    - name: Install conan
-      shell: bash
-      run: |
-        python3 -m pip install --upgrade pip setuptools conan
-        source ~/.profile
-
-    - name: Install dependencies
-      run:   |
-             sudo bash -c "$(wget -O - https://apt.llvm.org/llvm.sh)"
-             sudo apt update
-             sudo apt install ninja-build ${{ matrix.compiler.pkgs }}  ccache
-      shell: bash
-
-    - name: Configure via CMake
-      shell: bash
-      run: cmake --preset unixlike-${{ matrix.compiler.preset }}-${{ matrix.buildtype }} -DCXX_STANDARD=${{ matrix.cxx }}
-
-    - name: Build
-      shell: bash
-      run:  cmake --build --preset build-unixlike-${{ matrix.compiler.preset }}-${{ matrix.buildtype }}
-
-    - name: Test
-      shell: bash
-      run: ctest --preset test-unixlike-${{ matrix.compiler.preset }}-${{ matrix.buildtype }}
-
   linux-static_analysis:
     name: Static Analysis, ${{ matrix.os }}, ${{ matrix.compiler.name }}, ${{ matrix.buildtype }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false  # 'false' means Don't stop matrix workflows even if some matrix entry fails.
       matrix:
-        os: [ubuntu-22.04]
+        os: [ubuntu-24.04]
         buildtype: [debug]
-        compiler: [{name: 'Clang 15', preset: clang-15, pkgs: 'clang-15 llvm-15 llvm-15-dev libclang-15-dev', iwyu_branch: 'clang_15', path_prefix: "/usr/lib/llvm-15"}]
+        compiler: [{name: 'Clang 17', preset: clang-17, pkgs: 'clang-17 llvm-17 llvm-17-dev libclang-17-dev', iwyu_branch: 'clang_17', path_prefix: "/usr/lib/llvm-17"}]
 
     steps:
     - uses: actions/checkout@v4
@@ -192,156 +137,3 @@ jobs:
     - name: Build
       shell: bash
       run:  cmake --build --preset build-unixlike-${{ matrix.compiler.preset }}-${{ matrix.buildtype }}-static-analysis
-
-  linux-cross-compiling-armv7:
-    name: ARM GCC, ${{ matrix.os }}, ${{ matrix.buildtype }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false  # 'false' means Don't stop matrix workflows even if some matrix entry fails.
-      matrix:
-        os: [ubuntu-22.04]
-        buildtype: [debug, release]
-
-    steps:
-    - uses: actions/checkout@v4
-
-    - name: Cache
-      uses: actions/cache@v4
-      env:
-        cache-name: cache-conan-modules
-      with:
-        path: |
-          ${{ env.CONAN_USER_HOME }}
-          ~/.cache/pip
-          ~/.ccache
-        key: ${{ runner.os }}-${{ matrix.cxx }}-${{ matrix.compiler.preset }}-${{ matrix.buildtype }}-${{ hashFiles('conanfile.py') }}
-
-    - name: Install conan
-      shell: bash
-      run: |
-        python3 -m pip install --upgrade pip setuptools conan
-        source ~/.profile
-
-    - name: Install dependencies
-      run:   |
-             sudo apt update
-             sudo apt install ninja-build wget ccache
-      shell: bash
-
-    - name: Install GCC ARM
-      run:   |
-             wget -O archive.tar.xz "https://developer.arm.com/-/media/Files/downloads/gnu/12.2.rel1/binrel/arm-gnu-toolchain-12.2.rel1-x86_64-arm-none-eabi.tar.xz?rev=7bd049b7a3034e64885fa1a71c12f91d&hash=732D909FA8F68C0E1D0D17D08E057619" && \
-             echo 84be93d0f9e96a15addd490b6e237f588c641c8afdf90e7610a628007fc96867 archive.tar.xz > /tmp/archive.sha256 && sha256sum -c /tmp/archive.sha256 && rm /tmp/archive.sha256 && \
-             tar xf archive.tar.xz -C /opt
-      shell: bash
-
-    - name: Configure via CMake
-      shell: bash
-      run: cmake --preset gcc-arm-${{ matrix.buildtype }}
-
-    - name: Build
-      shell: bash
-      run:  cmake --build --preset build-gcc-arm-${{ matrix.buildtype }}
-
-  linux-fuzzing:
-    name: ${{ matrix.os }}, ${{ matrix.compiler.name }}, libFuzzer, ${{ matrix.buildtype }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false  # 'false' means Don't stop matrix workflows even if some matrix entry fails.
-      matrix:
-        os: [ubuntu-22.04]
-        buildtype: [debug]
-        compiler: [ {name: 'Clang 15', preset: clang-15, pkgs: 'clang-15 llvm-15'} ]
-
-    steps:
-    - uses: actions/checkout@v4
-
-    - name: Cache
-      uses: actions/cache@v4
-      env:
-        cache-name: cache-conan-modules
-      with:
-        path: |
-          ${{ env.CONAN_USER_HOME }}
-          ~/.cache/pip
-          ~/.ccache
-        key: ${{ runner.os }}-${{ matrix.cxx }}-${{ matrix.compiler.preset }}-${{ matrix.buildtype }}-${{ hashFiles('conanfile.py') }}
-
-    - name: Install conan
-      shell: bash
-      run: |
-        python3 -m pip install --upgrade pip setuptools conan
-        source ~/.profile
-
-    - name: Install dependencies
-      run:   |
-             sudo bash -c "$(wget -O - https://apt.llvm.org/llvm.sh)"
-             sudo apt update
-             sudo apt install ninja-build ${{ matrix.compiler.pkgs }} ccache
-      shell: bash
-
-    - name: Configure via CMake
-      shell: bash
-      run: cmake --preset unixlike-${{ matrix.compiler.preset }}-${{ matrix.buildtype }}
-
-    - name: Build
-      shell: bash
-      run:  cmake --build --preset build-unixlike-${{ matrix.compiler.preset }}-${{ matrix.buildtype }}
-
-  linux-qt:
-    name: ${{ matrix.os }}, QT ${{ matrix.compiler.name }}, C++${{ matrix.cxx }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false  # 'false' means Don't stop matrix workflows even if some matrix entry fails.
-      matrix:
-        os: [ubuntu-22.04]
-        buildtype: [debug]
-        compiler: [ {name: 'Clang 15', preset: clang-15-qt, pkgs: 'clang-15 llvm-15 llvm-15-dev llvm-15-linker-tools llvm-15-tools llvm-15-runtime'} ]
-        cxx: [20]
-
-    steps:
-    - uses: actions/checkout@v4
-
-    - name: Cache
-      uses: actions/cache@v4
-      env:
-        cache-name: cache-conan-modules
-      with:
-        path: |
-          ${{ env.CONAN_USER_HOME }}
-          ~/.cache/pip
-          ~/.ccache
-        key: ${{ runner.os }}-${{ matrix.cxx }}-${{ matrix.compiler.preset }}-${{ matrix.buildtype }}-${{ hashFiles('conanfile.py') }}
-
-    - name: Install conan
-      shell: bash
-      run: |
-        python3 -m pip install --upgrade pip setuptools conan
-        source ~/.profile
-
-    - name: Install dependencies
-      run:   |
-             sudo apt remove clang* llvm*
-             sudo bash -c "$(wget -O - https://apt.llvm.org/llvm.sh)"
-             sudo apt update
-             sudo apt install clang ninja-build build-essential ccache ${{ matrix.compiler.pkgs }} libx11-xcb-dev libfontenc-dev libice-dev \
-             libsm-dev libxaw7-dev libxcomposite-dev libxcursor-dev libxdamage-dev libxext-dev libxfixes-dev libxi-dev \
-             libxinerama-dev libxkbfile-dev libxmu-dev libxmuu-dev libxpm-dev libxrandr-dev libxrender-dev libxres-dev \
-             libxss-dev libxt-dev libxtst-dev libxv-dev libxxf86vm-dev libxcb-render0-dev libxcb-render-util0-dev \
-             libxcb-xkb-dev libxcb-icccm4-dev libxcb-image0-dev libxcb-keysyms1-dev libxcb-randr0-dev libxcb-shape0-dev \
-             libxcb-sync-dev libxcb-xfixes0-dev libxcb-xinerama0-dev libxcb-dri3-dev uuid-dev libxcb-cursor-dev \
-             libxcb-util-dev libxcb-util0-dev libx11-xcb1 libx11-dev libgl-dev libgl1-mesa-dev libxcb-glx0-dev \
-             libxcb-dri2-0-dev libxcb-present-dev libxcb-composite0-dev libxcb-ewmh-dev libxcb-res0-dev
-      shell: bash
-
-    - name: Configure via CMake
-      shell: bash
-      run: cmake --preset ${{ matrix.compiler.preset }} -DCXX_STANDARD=${{ matrix.cxx }}
-
-    - name: Build
-      shell: bash
-      run:  cmake --build --preset build-${{ matrix.compiler.preset }}
-
-    - name: Test
-      shell: bash
-      run: ctest --preset test-${{ matrix.compiler.preset }}
