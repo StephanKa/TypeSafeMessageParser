@@ -167,13 +167,13 @@
       }
     },
     {
-      "name": "unixlike-clang-17-debug",
-      "displayName": "Clang 17 Debug",
-      "description": "Target Unix-like OS with the Clang 17 compiler, debug build type",
+      "name": "unixlike-clang-18-debug",
+      "displayName": "Clang 18 Debug",
+      "description": "Target Unix-like OS with the Clang 18 compiler, debug build type",
       "inherits": "conf-unixlike-common",
       "cacheVariables": {
-        "CMAKE_C_COMPILER": "clang-17",
-        "CMAKE_CXX_COMPILER": "clang++-17",
+        "CMAKE_C_COMPILER": "clang-18",
+        "CMAKE_CXX_COMPILER": "clang++-18",
         "CMAKE_BUILD_TYPE": "Debug"
       }
     },
