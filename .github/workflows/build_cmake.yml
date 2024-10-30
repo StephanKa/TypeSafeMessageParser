@@ -36,10 +36,9 @@ jobs:
         buildtype: [debug]
         compiler: [ {name: 'GCC 14', preset: gcc-14, pkgs: 'gcc-14 g++-14 lib32gcc-14-dev gcc-multilib'},
                     {name: 'Clang 17', preset: clang-17, pkgs: 'clang-17 llvm-17'},
-                    {name: 'Clang 18', preset: clang-18, pkgs: 'clang-18 llvm-18'},
-                    {name: 'Clang 19', preset: clang-19, pkgs: 'clang-19 llvm-19'}
+                    {name: 'Clang 18', preset: clang-18, pkgs: 'clang-18 llvm-18'}
                   ]
-        cxx: [17, 20]
+        cxx: [20]
 
     steps:
     - uses: actions/checkout@v4
@@ -132,7 +131,7 @@ jobs:
 
     - name: Configure via CMake
       shell: bash
-      run: cmake --preset unixlike-${{ matrix.compiler.preset }}-${{ matrix.buildtype }}-static-analysis -DCXX_STANDARD=17
+      run: cmake --preset unixlike-${{ matrix.compiler.preset }}-${{ matrix.buildtype }}-static-analysis -DCXX_STANDARD=20
 
     - name: Build
       shell: bash

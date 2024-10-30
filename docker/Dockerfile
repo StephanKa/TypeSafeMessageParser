@@ -20,6 +20,7 @@ RUN apt-get update && apt-get -y dist-upgrade && apt-get -y install --fix-missin
   git \
   lsb-release \
   ninja-build \
+  openssh-server \
   pipx \
   python3 \
   python3-pip \

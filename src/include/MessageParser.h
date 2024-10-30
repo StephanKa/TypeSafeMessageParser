@@ -116,7 +116,7 @@ namespace MessageParser
             Type tempValue{};
             for (size_t i = 1; i <= Field::byteLength; ++i)
             {
-                tempValue |= msg.msg.at(Field::byteIndex + Field::byteLength - i) << ((i - 1) * BITS_PER_BYTE);
+                tempValue |= static_cast<Type>(msg.msg.at(Field::byteIndex + Field::byteLength - i) << ((i - 1) * BITS_PER_BYTE));
             }
             return RangeChecker<Field>(tempValue);
         }
