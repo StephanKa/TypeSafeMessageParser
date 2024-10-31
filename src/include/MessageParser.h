@@ -101,6 +101,20 @@ namespace MessageParser
         return std::nullopt;
     }
 
+    constexpr auto getType([[maybe_unused]] const auto &field)
+    {
+        using Type = decltype(field.type);
+        if constexpr (std::is_enum_v<decltype(field.type)>)
+        {
+            using UnderlyingType = std::underlying_type_t<Type>;
+            return UnderlyingType{};
+        }
+        else
+        {
+            return Type{};
+        }
+    }
+
     template<typename Field>
     constexpr std::optional<decltype(Field::type)> convertByteType(const auto &msg, [[maybe_unused]] const Field &field)
     {
@@ -113,12 +127,13 @@ namespace MessageParser
         else
         {
             constexpr size_t BITS_PER_BYTE{ 8 };
-            Type tempValue{};
+            auto tempValue = getType(field);
+            using ReturnType = decltype(tempValue);
             for (size_t i = 1; i <= Field::byteLength; ++i)
             {
-                tempValue |= static_cast<Type>(msg.msg.at(Field::byteIndex + Field::byteLength - i) << ((i - 1) * BITS_PER_BYTE));
+                tempValue |= static_cast<ReturnType>(msg.msg.at(Field::byteIndex + Field::byteLength - i) << ((i - 1) * BITS_PER_BYTE));
             }
-            return RangeChecker<Field>(tempValue);
+            return RangeChecker<Field>(static_cast<Type>(tempValue));
         }
     }
 }// namespace MessageParser

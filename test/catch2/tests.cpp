@@ -86,3 +86,68 @@ TEST_CASE("Check getField")
     const auto returnValue = MessageParser::getField<decltype(val)>(msg);
     REQUIRE(returnValue == 0x42);
 }
+
+TEST_CASE("Check getField with enum")
+{
+    enum class Error : std::uint8_t
+    {
+        Info,
+        Warning,
+        Fatal,
+        Critical
+    };
+    using Type = Error;
+    static constexpr auto val = FieldConfiguration<0, Type>{};
+    struct Message
+    {
+        std::array<uint8_t, sizeof(Type)> msg;
+    };
+
+    constexpr Message msg = { 0x2 };
+    const auto returnValue = MessageParser::getField<decltype(val)>(msg);
+    REQUIRE(returnValue == Error::Fatal);
+}
+
+TEST_CASE("Check getField with enum and MinMaxRange")
+{
+    enum class Error
+    {
+        Info,
+        Warning,
+        Fatal,
+        Critical,
+        Unknown
+    };
+    using Type = Error;
+    static constexpr auto val = FieldConfiguration<0, Type, FieldRanges::MinMaxRange{ .min = Error::Warning, .max = Error::Critical }>{};
+    struct Message
+    {
+        std::array<uint8_t, sizeof(Type)> msg;
+    };
+
+    {
+        constexpr Message msg = { 0x0 , 0x0, 0x0, 0x0 };
+        constexpr auto returnValue = MessageParser::convertByteType(msg, val);
+        STATIC_REQUIRE(returnValue == std::nullopt);
+    }
+    {
+        constexpr Message msg = { 0x0 , 0x0, 0x0, 0x1 };
+        constexpr auto returnValue = MessageParser::convertByteType(msg, val);
+        STATIC_REQUIRE(returnValue == Error::Warning);
+    }
+    {
+        constexpr Message msg = { 0x0 , 0x0, 0x0, 0x2 };
+        constexpr auto returnValue = MessageParser::convertByteType(msg, val);
+        STATIC_REQUIRE(returnValue == Error::Fatal);
+    }
+    {
+        constexpr Message msg = { 0x0 , 0x0, 0x0, 0x3 };
+        constexpr auto returnValue = MessageParser::convertByteType(msg, val);
+        STATIC_REQUIRE(returnValue == Error::Critical);
+    }
+    {
+        constexpr Message msg = { 0x0 , 0x0, 0x0, 0x4 };
+        constexpr auto returnValue = MessageParser::convertByteType(msg, val);
+        STATIC_REQUIRE(returnValue == std::nullopt);
+    }
+}
