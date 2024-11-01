@@ -1,12 +1,6 @@
 #include <MessageParser.h>
 #include <catch2/catch_all.hpp>
 
-
-// WORKAROUND for clang llvm issue: https://github.com/llvm/llvm-project/issues/113087
-namespace std {
-    template<> struct tuple_size<Catch::Decomposer> { static constexpr size_t value = 1; };
-}
-
 TEST_CASE("Calculate size with one field")
 {
     static constexpr auto val = FieldConfiguration<3, std::uint8_t>{};
