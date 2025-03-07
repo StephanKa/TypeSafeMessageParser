@@ -36,8 +36,7 @@ jobs:
         buildtype: [debug]
         compiler: [ {name: 'GCC 14', preset: gcc-14, pkgs: 'gcc-14 g++-14 lib32gcc-14-dev gcc-multilib'},
                     {name: 'Clang 18', preset: clang-18, pkgs: 'clang-18 llvm-18'},
-                    {name: 'Clang 19', preset: clang-19, pkgs: 'clang-19 llvm-19'},
-                    {name: 'Clang 20', preset: clang-20, pkgs: 'clang-18 llvm-20'}
+                    {name: 'Clang 19', preset: clang-19, pkgs: 'clang-19 llvm-19'}
                   ]
         cxx: [23]
 
