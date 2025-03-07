@@ -25,7 +25,7 @@ TEST_CASE("Check MinMaxRange with below lower range data")
 
     constexpr Message msg = {};
     STATIC_REQUIRE(MessageParser::getSize<decltype(val)>() == val.byteLength);
-    STATIC_REQUIRE(MessageParser::convertByteType(msg, val) == std::nullopt);
+    STATIC_REQUIRE(MessageParser::convertByteType(msg.msg, val) == std::nullopt);
 }
 
 TEST_CASE("Check MinMaxRange with valid data")
@@ -39,7 +39,7 @@ TEST_CASE("Check MinMaxRange with valid data")
 
     constexpr Message msg = { 0xAA, 0xFF };
     STATIC_REQUIRE(MessageParser::getSize<decltype(val)>() == val.byteLength);
-    STATIC_REQUIRE(MessageParser::convertByteType(msg, val) == 43775);
+    STATIC_REQUIRE(MessageParser::convertByteType(msg.msg, val) == 43775);
 }
 
 TEST_CASE("Check MinMaxRange with above upper range data")
@@ -53,7 +53,7 @@ TEST_CASE("Check MinMaxRange with above upper range data")
 
     constexpr Message msg = { 0xFF, 0xFF };
     STATIC_REQUIRE(MessageParser::getSize<decltype(val)>() == val.byteLength);
-    REQUIRE(MessageParser::convertByteType(msg, val) == std::nullopt);
+    REQUIRE(MessageParser::convertByteType(msg.msg, val) == std::nullopt);
 }
 
 TEST_CASE("Check MinMaxRange complete range")
@@ -69,7 +69,7 @@ TEST_CASE("Check MinMaxRange complete range")
     for(Type tempValue = range.min; tempValue <= range.max; ++tempValue)
     {
         const Message msg = { tempValue };
-        REQUIRE(MessageParser::convertByteType(msg, val) == tempValue);
+        REQUIRE(MessageParser::convertByteType(msg.msg, val) == tempValue);
     }
 }
 
@@ -83,7 +83,7 @@ TEST_CASE("Check getField")
     };
 
     constexpr Message msg = { 0x42 };
-    const auto returnValue = MessageParser::getField<decltype(val)>(msg);
+    const auto returnValue = MessageParser::getField<decltype(val)>(msg.msg);
     REQUIRE(returnValue == 0x42);
 }
 
@@ -104,7 +104,7 @@ TEST_CASE("Check getField with enum")
     };
 
     constexpr Message msg = { 0x2 };
-    const auto returnValue = MessageParser::getField<decltype(val)>(msg);
+    const auto returnValue = MessageParser::getField<decltype(val)>(msg.msg);
     REQUIRE(returnValue == Error::Fatal);
 }
 
@@ -127,27 +127,27 @@ TEST_CASE("Check getField with enum and MinMaxRange")
 
     {
         constexpr Message msg = { 0x0 , 0x0, 0x0, 0x0 };
-        constexpr auto returnValue = MessageParser::convertByteType(msg, val);
+        constexpr auto returnValue = MessageParser::convertByteType(msg.msg, val);
         STATIC_REQUIRE(returnValue == std::nullopt);
     }
     {
         constexpr Message msg = { 0x0 , 0x0, 0x0, 0x1 };
-        constexpr auto returnValue = MessageParser::convertByteType(msg, val);
+        constexpr auto returnValue = MessageParser::convertByteType(msg.msg, val);
         STATIC_REQUIRE(returnValue == Error::Warning);
     }
     {
         constexpr Message msg = { 0x0 , 0x0, 0x0, 0x2 };
-        constexpr auto returnValue = MessageParser::convertByteType(msg, val);
+        constexpr auto returnValue = MessageParser::convertByteType(msg.msg, val);
         STATIC_REQUIRE(returnValue == Error::Fatal);
     }
     {
         constexpr Message msg = { 0x0 , 0x0, 0x0, 0x3 };
-        constexpr auto returnValue = MessageParser::convertByteType(msg, val);
+        constexpr auto returnValue = MessageParser::convertByteType(msg.msg, val);
         STATIC_REQUIRE(returnValue == Error::Critical);
     }
     {
         constexpr Message msg = { 0x0 , 0x0, 0x0, 0x4 };
-        constexpr auto returnValue = MessageParser::convertByteType(msg, val);
+        constexpr auto returnValue = MessageParser::convertByteType(msg.msg, val);
         STATIC_REQUIRE(returnValue == std::nullopt);
     }
 }

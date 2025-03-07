@@ -9,6 +9,13 @@
 
 namespace FieldRanges
 {
+    enum class ParseError
+    {
+        ValueNotExist,
+        BelowRange,
+        AboveRange
+    };
+
     // range definition for defining value with minimum and maximum values
     template<typename T>
     struct MinMaxRange
@@ -59,7 +66,7 @@ namespace MessageParser
     constexpr decltype(Field::type) getField(const auto &msg)
     {
         using Type = decltype(Field::type);
-        const auto casted = static_cast<Type>(msg.msg.at(Field::byteIndex));
+        const auto casted = static_cast<Type>(msg.at(Field::byteIndex));
         spdlog::info("value {}", static_cast<uint32_t>(casted));
         return casted;
     }
@@ -67,15 +74,24 @@ namespace MessageParser
     template<typename... Fields>
     constexpr auto getSize()
     {
-        std::size_t returnValue{ 0 };
+        std::size_t returnValue{0};
         ((returnValue += Fields::byteLength), ...);
         return returnValue;
     }
 
-    template<typename... Fields>
-    constexpr void parseMessage(const auto &msg, [[maybe_unused]] const Fields &...fields)
+    template<typename T, size_t size>
+    constexpr auto getMessageSize([[maybe_unused]]const std::array<T, size>& value)
     {
-        // TODO fix me static_assert(getSize<Fields...>() == msg.msg.size(), "size is not equal!");
+        return size;
+    }
+
+    template<typename T, size_t size, typename... Fields>
+    constexpr void parseMessage(const std::array<T, size>& msg, [[maybe_unused]] const Fields &...fields)
+    {
+        if consteval
+        {
+            static_assert(getSize<Fields...>() == size, "size is not equal!");
+        }
         ((getField<Fields>(msg)), ...);
     }
 
@@ -121,7 +137,7 @@ namespace MessageParser
         using Type = std::remove_cvref_t<decltype(Field::type)>;
         if constexpr (Field::byteLength == 1)
         {
-            const auto tempValue = static_cast<Type>(msg.msg.at(Field::byteIndex));
+            const auto tempValue = static_cast<Type>(msg.at(Field::byteIndex));
             return RangeChecker<Field>(tempValue);
         }
         else
@@ -131,7 +147,7 @@ namespace MessageParser
             using ReturnType = decltype(tempValue);
             for (size_t i = 1; i <= Field::byteLength; ++i)
             {
-                tempValue |= static_cast<ReturnType>(msg.msg.at(Field::byteIndex + Field::byteLength - i) << ((i - 1) * BITS_PER_BYTE));
+                tempValue |= static_cast<ReturnType>(msg.at(Field::byteIndex + Field::byteLength - i) << ((i - 1) * BITS_PER_BYTE));
             }
             return RangeChecker<Field>(static_cast<Type>(tempValue));
         }

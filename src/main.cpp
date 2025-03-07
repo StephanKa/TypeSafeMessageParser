@@ -1,4 +1,5 @@
 #include <MessageParser.h>
+#include <array>
 
 // example
 enum class Status : std::uint8_t
@@ -49,26 +50,26 @@ struct DataFields
 // Message type
 struct Message
 {
-    uint16_t id;
-    std::array<std::uint8_t, 10> msg;
+    uint16_t id{};
+    std::array<std::uint8_t, 10> data{};
 };
 
 int main()
 {
-    constexpr Message msg{.id=42, .msg={0x1, 0x3, 0x1, 0x0, 0x4, 0x5, 0xA, 0x5, 0xCF, 0xFF}};
-    MessageParser::parseMessage(msg, DataFields::A, DataFields::B, DataFields::C, DataFields::D, DataFields::E, DataFields::F, DataFields::G, DataFields::H, DataFields::I);
-    constexpr auto type = MessageParser::convertByteType(msg, DataFields::B);
+    constexpr Message msg{.id=42, .data={0x1, 0x3, 0x1, 0x0, 0x4, 0x5, 0xA, 0x5, 0xCF, 0xFF}};
+    MessageParser::parseMessage(msg.data, DataFields::A, DataFields::B, DataFields::C, DataFields::D, DataFields::E, DataFields::F, DataFields::G, DataFields::H, DataFields::I);
+    constexpr auto type = MessageParser::convertByteType(msg.data, DataFields::B);
     if constexpr (type.has_value())
     {
         spdlog::info("type: {}", static_cast<uint32_t>(type.value()));
     }
 
-    constexpr auto typeH = MessageParser::convertByteType(msg, DataFields::H);
+    constexpr auto typeH = MessageParser::convertByteType(msg.data, DataFields::H);
     if constexpr (typeH.has_value())
     {
         spdlog::info("typeH: {}", static_cast<uint32_t>(typeH.value()));
     }
-    constexpr auto typeI = MessageParser::convertByteType(msg, DataFields::I);
+    constexpr auto typeI = MessageParser::convertByteType(msg.data, DataFields::I);
     if constexpr (typeI.has_value())
     {
         spdlog::info("typeI: {}", static_cast<uint32_t>(typeI.value()));
