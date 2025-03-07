@@ -145,28 +145,6 @@
       }
     },
     {
-      "name": "unixlike-clang-17-debug",
-      "displayName": "Clang 17 Debug",
-      "description": "Target Unix-like OS with the Clang 17 compiler, debug build type",
-      "inherits": "conf-unixlike-common",
-      "cacheVariables": {
-        "CMAKE_C_COMPILER": "clang-17",
-        "CMAKE_CXX_COMPILER": "clang++-17",
-        "CMAKE_BUILD_TYPE": "Debug"
-      }
-    },
-    {
-      "name": "unixlike-clang-17-release",
-      "displayName": "Clang 17 Release",
-      "description": "Target Unix-like OS with the Clang 17 compiler, release build type",
-      "inherits": "conf-unixlike-common",
-      "cacheVariables": {
-        "CMAKE_C_COMPILER": "clang-17",
-        "CMAKE_CXX_COMPILER": "clang++-17",
-        "CMAKE_BUILD_TYPE": "RelWithDebInfo"
-      }
-    },
-    {
       "name": "unixlike-clang-18-debug",
       "displayName": "Clang 18 Debug",
       "description": "Target Unix-like OS with the Clang 18 compiler, debug build type",
@@ -211,13 +189,35 @@
       }
     },
     {
-      "name": "unixlike-clang-17-debug-static-analysis",
-      "displayName": "Clang 17 Debug - Static Analysis",
-      "description": "Target Unix-like OS with the Clang 17 compiler, debug build type",
-      "inherits": "unixlike-clang-17-debug",
+      "name": "unixlike-clang-20-debug",
+      "displayName": "Clang 20 Debug",
+      "description": "Target Unix-like OS with the Clang 20 compiler, debug build type",
+      "inherits": "conf-unixlike-common",
       "cacheVariables": {
-        "CMAKE_C_COMPILER": "clang-17",
-        "CMAKE_CXX_COMPILER": "clang++-17",
+        "CMAKE_C_COMPILER": "clang-20",
+        "CMAKE_CXX_COMPILER": "clang++-20",
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+    {
+      "name": "unixlike-clang-20-release",
+      "displayName": "Clang 20 Release",
+      "description": "Target Unix-like OS with the Clang 20 compiler, release build type",
+      "inherits": "conf-unixlike-common",
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "clang-20",
+        "CMAKE_CXX_COMPILER": "clang++-20",
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo"
+      }
+    },
+    {
+      "name": "unixlike-clang-19-debug-static-analysis",
+      "displayName": "Clang 19 Debug - Static Analysis",
+      "description": "Target Unix-like OS with the Clang 19 compiler, debug build type",
+      "inherits": "unixlike-clang-19-debug",
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "clang-19",
+        "CMAKE_CXX_COMPILER": "clang++-19",
         "CMAKE_BUILD_TYPE": "Debug",
         "ENABLE_CPPCHECK": "ON",
         "ENABLE_CLANG_TIDY": "ON",
@@ -257,16 +257,6 @@
       "configurePreset": "unixlike-gcc-14-release"
     },
     {
-      "name": "build-unixlike-clang-17-debug",
-      "displayName": "Linux Clang 17 Debug",
-      "configurePreset": "unixlike-clang-17-debug"
-    },
-    {
-      "name": "build-unixlike-clang-17-release",
-      "displayName": "Linux Clang 17 Release",
-      "configurePreset": "unixlike-clang-17-release"
-    },
-    {
       "name": "build-unixlike-clang-18-debug",
       "displayName": "Linux Clang 18 Debug",
       "configurePreset": "unixlike-clang-18-debug"
@@ -287,9 +277,19 @@
       "configurePreset": "unixlike-clang-19-release"
     },
     {
-      "name": "build-unixlike-clang-17-debug-static-analysis",
-      "displayName": "Linux Clang 17 Debug Static Analysis",
-      "configurePreset": "unixlike-clang-17-debug-static-analysis"
+      "name": "build-unixlike-clang-20-debug",
+      "displayName": "Linux Clang 20 Debug",
+      "configurePreset": "unixlike-clang-20-debug"
+    },
+    {
+      "name": "build-unixlike-clang-20-release",
+      "displayName": "Linux Clang 20 Release",
+      "configurePreset": "unixlike-clang-20-release"
+    },
+    {
+      "name": "build-unixlike-clang-19-debug-static-analysis",
+      "displayName": "Linux Clang 19 Debug Static Analysis",
+      "configurePreset": "unixlike-clang-19-debug-static-analysis"
     }
   ],
   "testPresets": [
@@ -354,18 +354,6 @@
       "configurePreset": "unixlike-gcc-14-release"
     },
     {
-      "name": "test-unixlike-clang-17-debug",
-      "displayName": "Linux Clang 17 Debug",
-      "inherits": "test-common",
-      "configurePreset": "unixlike-clang-17-debug"
-    },
-    {
-      "name": "test-unixlike-clang-17-release",
-      "displayName": "Linux Clang 17 Release",
-      "inherits": "test-common",
-      "configurePreset": "unixlike-clang-17-release"
-    },
-    {
       "name": "test-unixlike-clang-18-debug",
       "displayName": "Linux Clang 18 Debug",
       "inherits": "test-common",
@@ -388,6 +376,18 @@
       "displayName": "Linux Clang 19 Release",
       "inherits": "test-common",
       "configurePreset": "unixlike-clang-19-release"
+    },
+    {
+      "name": "test-unixlike-clang-20-debug",
+      "displayName": "Linux Clang 20 Debug",
+      "inherits": "test-common",
+      "configurePreset": "unixlike-clang-20-debug"
+    },
+    {
+      "name": "test-unixlike-clang-20-release",
+      "displayName": "Linux Clang 20 Release",
+      "inherits": "test-common",
+      "configurePreset": "unixlike-clang-20-release"
     }
   ]
 }
