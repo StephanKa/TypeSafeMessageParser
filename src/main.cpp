@@ -1,5 +1,6 @@
 #include <MessageParser.h>
 #include <array>
+#include <cstdint>
 
 // example
 enum class Status : std::uint8_t

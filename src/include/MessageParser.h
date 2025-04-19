@@ -9,7 +9,7 @@
 
 namespace FieldRanges
 {
-    enum class ParseError
+    enum class ParseError : std::uint8_t
     {
         ValueNotExist,
         BelowRange,
@@ -44,7 +44,7 @@ namespace FieldRanges
         val.min;
         val.max;
     };
-} // namespace FieldRanges
+}// namespace FieldRanges
 
 // definition of a Field
 template<std::size_t index, typename FieldType, auto Range = FieldRanges::MinMaxRange{ .min = std::numeric_limits<uint32_t>::min(), .max = std::numeric_limits<uint32_t>::max() }>
@@ -66,27 +66,25 @@ namespace MessageParser
     constexpr decltype(Field::type) getField(const auto &msg)
     {
         using Type = decltype(Field::type);
-        const auto casted = static_cast<Type>(msg.at(Field::byteIndex));
-        spdlog::info("value {}", static_cast<uint32_t>(casted));
-        return casted;
+        return static_cast<Type>(msg.at(Field::byteIndex));
     }
 
     template<typename... Fields>
     constexpr auto getSize()
     {
-        std::size_t returnValue{0};
+        size_t returnValue{ 0 };
         ((returnValue += Fields::byteLength), ...);
         return returnValue;
     }
 
     template<typename T, size_t size>
-    constexpr auto getMessageSize([[maybe_unused]]const std::array<T, size>& value)
+    constexpr auto getMessageSize([[maybe_unused]] const std::array<T, size> &value)
     {
         return size;
     }
 
     template<typename T, size_t size, typename... Fields>
-    constexpr void parseMessage(const std::array<T, size>& msg, [[maybe_unused]] const Fields &...fields)
+    constexpr void parseMessage(const std::array<T, size> &msg, [[maybe_unused]] const Fields &...fields)
     {
         if consteval
         {
@@ -101,7 +99,7 @@ namespace MessageParser
         using RangeType = decltype(Field::range);
         if constexpr (FieldRanges::IsSpecificRange<RangeType>)
         {
-            const auto res = std::find_if(Field::range.possibleValues.begin(), Field::range.possibleValues.end(), [&value](const auto &val) { return val == value; });
+            const auto res = std::ranges::find_if(Field::range.possibleValues, [&value](const auto &val) { return val == value; });
             if (res != Field::range.possibleValues.end())
             {
                 return value;
@@ -142,11 +140,11 @@ namespace MessageParser
         }
         else
         {
-            constexpr size_t BITS_PER_BYTE{ 8 };
             auto tempValue = getType(field);
             using ReturnType = decltype(tempValue);
             for (size_t i = 1; i <= Field::byteLength; ++i)
             {
+                constexpr size_t BITS_PER_BYTE{ 8 };
                 tempValue |= static_cast<ReturnType>(msg.at(Field::byteIndex + Field::byteLength - i) << ((i - 1) * BITS_PER_BYTE));
             }
             return RangeChecker<Field>(static_cast<Type>(tempValue));
