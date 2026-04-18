@@ -1,6 +1,64 @@
 # Type Safe Message Parser
 
-TODO 
+A **header-only, compile-time type-safe message parser library for C++23**. It parses raw byte arrays — such as those received from CAN bus, serial lines, or other embedded communication protocols — into strongly-typed C++ values with validated ranges, all evaluated at compile time where possible.
+
+## Features
+
+- **Header-only** — just include `MessageParser.h`, no compilation required
+- **Compile-time parsing** — all parsing and validation can be performed via `constexpr`/`consteval`, catching errors at build time instead of runtime
+- **Type-safe field mapping** — fields are declared with an explicit type (`uint8_t`, `uint16_t`, `enum`, …) and a byte index; the parser reads and casts accordingly
+- **Range validation** — every field can carry a `MinMaxRange<T>` (inclusive min/max) or a `SpecificRange<V...>` (exact allowed values); validation returns `std::expected<T, ParseError>` so errors are always handled explicitly
+- **Enum support** — enum values are first-class citizens; a field typed as an enum is read from raw bytes and validated through the same range mechanism
+- **Multi-byte fields** — fields wider than one byte (e.g., `uint16_t`) are read in big-endian order
+- **Static size checks** — `parseMessage()` `static_assert`s at compile time that the sum of all field sizes equals the actual array size, preventing buffer over/under-reads
+- **Rich error information** — `ParseError` distinguishes `ValueNotExist`, `BelowRange`, and `AboveRange`
+
+## Usage
+
+```cpp
+#include "MessageParser.h"
+
+using namespace MessageParser;
+using namespace FieldRanges;
+
+// 1. Define the types your message fields carry
+enum class Status : uint8_t { Ok = 0, Warning = 1, Error = 2 };
+enum class Motor  : uint8_t { Off = 0, On = 1 };
+
+// 2. Declare field configurations (byte index, type, optional range)
+struct Fields {
+    static constexpr FieldConfiguration<0, Status> status{};
+    static constexpr FieldConfiguration<1, Motor>  motor{};
+    static constexpr FieldConfiguration<2, uint16_t, MinMaxRange<uint16_t>{1000, 65000}> rpm{};
+};
+
+// 3. Parse a raw message (compile-time or runtime)
+constexpr std::array<uint8_t, 4> msg = { 0x01, 0x01, 0x10, 0xE8 };
+
+auto result = convertByteType(msg, Fields::rpm);
+if (result) {
+    uint16_t rpmValue = *result; // 4328, validated to be in [1000, 65000]
+}
+```
+
+## API Overview
+
+| Function / Type | Description |
+|---|---|
+| `FieldConfiguration<Index, T, Range>` | Declares a field: byte index, value type, and optional range constraint |
+| `MinMaxRange<T>{min, max}` | Inclusive minimum/maximum range |
+| `SpecificRange<V...>{}` | Exact set of allowed values |
+| `ParseError` | Enum: `ValueNotExist`, `BelowRange`, `AboveRange` |
+| `convertByteType(msg, field)` | Reads the field from `msg`, validates its range, returns `std::expected<T, ParseError>` |
+| `getField<Field>(msg)` | Reads a single byte and casts it to the field's type (no range check) |
+| `parseMessage(msg, fields...)` | Validates that all field sizes add up to the message size at compile time |
+| `getSize<Fields...>()` | Returns the total byte size of all given fields at compile time |
+
+## Requirements
+
+- **C++23** compiler (GCC 14, Clang 17/18/19, MSVC 2019/2022)
+- **CMake** ≥ 3.21
+- **Conan 2** (for dependency management)
 
 ## Build Instructions
 
@@ -44,20 +102,20 @@ Choose a configuration which is suitable and use following command for example.
 Once you have selected all the options you would like to use, you can build the
 project (all targets):
 
-    cmake --preset <PRESET_NAME>
+    cmake --build --preset <PRESET_NAME>
 
 For example:
-    
-    cmake --preset build-unixlike-clang-17-debug
+
+    cmake --build --preset build-unixlike-clang-17-debug
 
 ### Test
-Run all test using preset and ctest:
+Run all tests using a test preset and ctest:
 
-    cmake --preset <PRESET_NAME>
+    ctest --preset <PRESET_NAME>
 
 For example:
 
-    cmake --preset test-unixlike-clang-17-debug
+    ctest --preset test-unixlike-clang-17-debug
 
 ## Testing
 

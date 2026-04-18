@@ -151,3 +151,129 @@ TEST_CASE("Check getField with enum and MinMaxRange")
         STATIC_REQUIRE(returnValue == std::nullopt);
     }
 }
+
+// ---------------------------------------------------------------------------
+// ParseError variant tests
+// ---------------------------------------------------------------------------
+
+TEST_CASE("MinMaxRange below range returns BelowRange error")
+{
+    using Type = uint16_t;
+    static constexpr auto val = FieldConfiguration<0, Type, FieldRanges::MinMaxRange{ .min = 1000, .max = 65000 }>{};
+    constexpr std::array<uint8_t, sizeof(Type)> msg = { 0x00, 0x00 }; // 0
+    constexpr auto result = MessageParser::convertByteType(msg, val);
+    STATIC_REQUIRE_FALSE(result.has_value());
+    STATIC_REQUIRE(result.error() == FieldRanges::ParseError::BelowRange);
+}
+
+TEST_CASE("MinMaxRange above range returns AboveRange error")
+{
+    using Type = uint16_t;
+    static constexpr auto val = FieldConfiguration<0, Type, FieldRanges::MinMaxRange{ .min = 1000, .max = 65000 }>{};
+    constexpr std::array<uint8_t, sizeof(Type)> msg = { 0xFF, 0xFF }; // 65535 > 65000
+    constexpr auto result = MessageParser::convertByteType(msg, val);
+    STATIC_REQUIRE_FALSE(result.has_value());
+    STATIC_REQUIRE(result.error() == FieldRanges::ParseError::AboveRange);
+}
+
+// ---------------------------------------------------------------------------
+// SpecificRange tests
+// ---------------------------------------------------------------------------
+
+TEST_CASE("SpecificRange returns value when it is in the allowed set")
+{
+    using Type = uint8_t;
+    static constexpr auto val = FieldConfiguration<0, Type, FieldRanges::SpecificRange{ uint8_t{10}, uint8_t{20}, uint8_t{30} }>{};
+    constexpr std::array<uint8_t, sizeof(Type)> msg = { 20 };
+    constexpr auto result = MessageParser::convertByteType(msg, val);
+    STATIC_REQUIRE(result.has_value());
+    STATIC_REQUIRE(*result == 20);
+}
+
+TEST_CASE("SpecificRange first boundary value is accepted")
+{
+    using Type = uint8_t;
+    static constexpr auto val = FieldConfiguration<0, Type, FieldRanges::SpecificRange{ uint8_t{10}, uint8_t{20}, uint8_t{30} }>{};
+    constexpr std::array<uint8_t, sizeof(Type)> msg = { 10 };
+    constexpr auto result = MessageParser::convertByteType(msg, val);
+    STATIC_REQUIRE(result.has_value());
+    STATIC_REQUIRE(*result == 10);
+}
+
+TEST_CASE("SpecificRange last boundary value is accepted")
+{
+    using Type = uint8_t;
+    static constexpr auto val = FieldConfiguration<0, Type, FieldRanges::SpecificRange{ uint8_t{10}, uint8_t{20}, uint8_t{30} }>{};
+    constexpr std::array<uint8_t, sizeof(Type)> msg = { 30 };
+    constexpr auto result = MessageParser::convertByteType(msg, val);
+    STATIC_REQUIRE(result.has_value());
+    STATIC_REQUIRE(*result == 30);
+}
+
+TEST_CASE("SpecificRange returns ValueNotExist when value is not in the set")
+{
+    using Type = uint8_t;
+    static constexpr auto val = FieldConfiguration<0, Type, FieldRanges::SpecificRange{ uint8_t{10}, uint8_t{20}, uint8_t{30} }>{};
+    constexpr std::array<uint8_t, sizeof(Type)> msg = { 15 };
+    constexpr auto result = MessageParser::convertByteType(msg, val);
+    STATIC_REQUIRE_FALSE(result.has_value());
+    STATIC_REQUIRE(result.error() == FieldRanges::ParseError::ValueNotExist);
+}
+
+// ---------------------------------------------------------------------------
+// Multi-byte parsing tests
+// ---------------------------------------------------------------------------
+
+TEST_CASE("Multi-byte uint32_t field parsed big-endian")
+{
+    using Type = uint32_t;
+    static constexpr auto val = FieldConfiguration<0, Type>{};
+    // 0x01020304 in big-endian
+    constexpr std::array<uint8_t, sizeof(Type)> msg = { 0x01, 0x02, 0x03, 0x04 };
+    constexpr auto result = MessageParser::convertByteType(msg, val);
+    STATIC_REQUIRE(result.has_value());
+    STATIC_REQUIRE(*result == uint32_t{ 0x01020304 });
+}
+
+TEST_CASE("Multi-byte field big-endian byte order: 0x0100 equals 256")
+{
+    using Type = uint16_t;
+    static constexpr auto val = FieldConfiguration<0, Type>{};
+    constexpr std::array<uint8_t, sizeof(Type)> msg = { 0x01, 0x00 };
+    constexpr auto result = MessageParser::convertByteType(msg, val);
+    STATIC_REQUIRE(result.has_value());
+    STATIC_REQUIRE(*result == uint16_t{ 256 });
+}
+
+TEST_CASE("Multi-byte field at non-zero byte index")
+{
+    using Type = uint16_t;
+    static constexpr auto val = FieldConfiguration<2, Type, FieldRanges::MinMaxRange{ .min = uint16_t{0}, .max = uint16_t{65535} }>{};
+    // bytes 0-1 are padding, bytes 2-3 carry 0x1234
+    constexpr std::array<uint8_t, 4> msg = { 0x00, 0x00, 0x12, 0x34 };
+    constexpr auto result = MessageParser::convertByteType(msg, val);
+    STATIC_REQUIRE(result.has_value());
+    STATIC_REQUIRE(*result == uint16_t{ 0x1234 });
+}
+
+// ---------------------------------------------------------------------------
+// getSize with 3+ fields
+// ---------------------------------------------------------------------------
+
+TEST_CASE("Calculate size with three fields")
+{
+    static constexpr auto f1 = FieldConfiguration<0, uint8_t>{};
+    static constexpr auto f2 = FieldConfiguration<1, uint16_t>{};
+    static constexpr auto f3 = FieldConfiguration<3, uint32_t>{};
+    STATIC_REQUIRE(MessageParser::getSize<decltype(f1), decltype(f2), decltype(f3)>() == 7);
+}
+
+// ---------------------------------------------------------------------------
+// getMessageSize
+// ---------------------------------------------------------------------------
+
+TEST_CASE("getMessageSize returns array size")
+{
+    constexpr std::array<uint8_t, 5> msg = {};
+    STATIC_REQUIRE(MessageParser::getMessageSize(msg) == 5);
+}

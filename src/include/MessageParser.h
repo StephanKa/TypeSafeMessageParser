@@ -2,9 +2,8 @@
 #include <algorithm>
 #include <array>
 #include <cstdint>
+#include <expected>
 #include <limits>
-#include <optional>
-#include <spdlog/spdlog.h>
 #include <type_traits>
 
 namespace FieldRanges
@@ -44,6 +43,9 @@ namespace FieldRanges
         val.min;
         val.max;
     };
+
+    static_assert(!IsSpecificRange<MinMaxRange<int>>, "MinMaxRange must not satisfy IsSpecificRange");
+    static_assert(!IsMinMaxRange<SpecificRange<int>>, "SpecificRange must not satisfy IsMinMaxRange");
 }// namespace FieldRanges
 
 // definition of a Field
@@ -53,9 +55,6 @@ struct FieldConfiguration
     static constexpr std::size_t byteIndex{ index };
     static constexpr std::size_t byteLength{ sizeof(FieldType) };
     static constexpr FieldType type{};
-    static constexpr std::size_t startBit{ 0 };
-    static constexpr std::size_t bitLength{ 8 };
-    static constexpr bool isBitAligned{ bitLength % 8 == 0 };
     static constexpr decltype(Range) range{ Range };
 };
 
@@ -94,7 +93,7 @@ namespace MessageParser
     }
 
     template<typename Field>
-    constexpr std::optional<decltype(Field::type)> RangeChecker(const auto &value)
+    constexpr std::expected<decltype(Field::type), FieldRanges::ParseError> RangeChecker(const auto &value)
     {
         using RangeType = decltype(Field::range);
         if constexpr (FieldRanges::IsSpecificRange<RangeType>)
@@ -104,15 +103,24 @@ namespace MessageParser
             {
                 return value;
             }
+            return std::unexpected(FieldRanges::ParseError::ValueNotExist);
         }
-        if constexpr (FieldRanges::IsMinMaxRange<RangeType>)
+        else if constexpr (FieldRanges::IsMinMaxRange<RangeType>)
         {
-            if (value >= Field::range.min && value <= Field::range.max)
+            if (value < Field::range.min)
             {
-                return value;
+                return std::unexpected(FieldRanges::ParseError::BelowRange);
             }
+            if (value > Field::range.max)
+            {
+                return std::unexpected(FieldRanges::ParseError::AboveRange);
+            }
+            return value;
         }
-        return std::nullopt;
+        else
+        {
+            return std::unexpected(FieldRanges::ParseError::ValueNotExist);
+        }
     }
 
     constexpr auto getType([[maybe_unused]] const auto &field)
@@ -130,7 +138,7 @@ namespace MessageParser
     }
 
     template<typename Field>
-    constexpr std::optional<decltype(Field::type)> convertByteType(const auto &msg, [[maybe_unused]] const Field &field)
+    constexpr auto convertByteType(const auto &msg, [[maybe_unused]] const Field &field)
     {
         using Type = std::remove_cvref_t<decltype(Field::type)>;
         if constexpr (Field::byteLength == 1)
@@ -145,7 +153,7 @@ namespace MessageParser
             for (size_t i = 1; i <= Field::byteLength; ++i)
             {
                 constexpr size_t BITS_PER_BYTE{ 8 };
-                tempValue |= static_cast<ReturnType>(msg.at(Field::byteIndex + Field::byteLength - i) << ((i - 1) * BITS_PER_BYTE));
+                tempValue |= (static_cast<ReturnType>(msg.at(Field::byteIndex + Field::byteLength - i)) << ((i - 1) * BITS_PER_BYTE));
             }
             return RangeChecker<Field>(static_cast<Type>(tempValue));
         }
