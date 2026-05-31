@@ -1,6 +1,7 @@
 # Ignore vim/YouCompleteMe settings
 .cache/
 .vimrc
+.idea/
 compile_commands.json
 
 # Build directories and binary files
