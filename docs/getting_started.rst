@@ -14,8 +14,25 @@ Requirements
 Installation
 ------------
 
-TypeSafeMessageParser is a header-only library. Simply copy ``src/include/MessageParser.h``
-into your project's include path, or use CMake's ``FetchContent``:
+TypeSafeMessageParser is a header-only library. There are three ways to use it:
+
+**Option 1: Single amalgamated header (easiest)**
+
+Generate or download the single-header version and drop it into your project:
+
+.. code-block:: bash
+
+   # Build the single-header target
+   cmake --build --preset build-unixlike-clang-20-release --target single_header
+
+This produces ``single_include/MessageParser.h`` — a self-contained file with no
+external dependencies beyond the C++23 standard library.
+
+**Option 2: Copy the header directly**
+
+Copy ``src/include/MessageParser.h`` into your project's include path.
+
+**Option 3: CMake FetchContent**
 
 .. code-block:: cmake
 
@@ -64,6 +81,7 @@ Quick Example
    #include "MessageParser.h"
    #include <array>
    #include <cstdint>
+   #include <span>
 
    enum class Status : uint8_t { Ok = 0, Warning = 1, Error = 2 };
 
@@ -75,7 +93,29 @@ Quick Example
 
    int main() {
        constexpr std::array<uint8_t, 3> msg = { 0x01, 0x03, 0xE8 };
+
+       // Parse from std::array
        constexpr auto result = MessageParser::convertByteType(msg, MyFields::counter);
        static_assert(result.has_value());
        static_assert(*result == 1000);
+
+       // Also works with std::span (for runtime buffers)
+       std::span<const uint8_t> buffer = msg;
+       auto runtime_result = MessageParser::convertByteType(buffer, MyFields::counter);
+       assert(runtime_result.has_value());
+   }
+
+Using ``std::span``
+^^^^^^^^^^^^^^^^^^^
+
+All parsing functions accept both ``std::array`` and ``std::span<const uint8_t>``.
+Use ``std::span`` when working with dynamic buffers (network packets, serial data, DMA):
+
+.. code-block:: cpp
+
+   void processPacket(std::span<const uint8_t> data) {
+       auto field = MessageParser::convertByteType(data, MyFields::counter);
+       if (field.has_value()) {
+           // use *field
+       }
    }

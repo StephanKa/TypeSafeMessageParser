@@ -203,3 +203,169 @@ Full Message Parsing Flow
        Range --> Valid{Range valid?}
        Valid -->|Yes| Success["std::expected(value)"]
        Valid -->|No| Error["std::unexpected(ParseError)"]
+
+Bit-Field Layout
+----------------
+
+Bit-fields allow sub-byte field access. A ``BitFieldConfiguration`` specifies the byte
+index, bit offset (from MSB), and bit width:
+
+.. mermaid::
+
+   graph LR
+       subgraph "Single Byte: 0xAB = 10101011"
+           B7["Bit 0: 1"]
+           B6["Bit 1: 0"]
+           B5["Bit 2: 1"]
+           B4["Bit 3: 0"]
+           B3["Bit 4: 1"]
+           B2["Bit 5: 0"]
+           B1["Bit 6: 1"]
+           B0["Bit 7: 1"]
+       end
+
+       subgraph "BitField(offset=0, width=4)"
+           Result1["1010 = 10"]
+       end
+
+       subgraph "BitField(offset=4, width=4)"
+           Result2["1011 = 11"]
+       end
+
+       B7 --> Result1
+       B6 --> Result1
+       B5 --> Result1
+       B4 --> Result1
+       B3 --> Result2
+       B2 --> Result2
+       B1 --> Result2
+       B0 --> Result2
+
+For bit-fields spanning two bytes, the library reads the necessary bytes and extracts
+the bit range across the boundary.
+
+Signed Integer Fields
+---------------------
+
+Signed integers (``int8_t``, ``int16_t``, ``int32_t``) use two's complement representation,
+which is the native format. The library casts raw bytes to the signed type directly:
+
+.. mermaid::
+
+   graph LR
+       subgraph "Raw Byte"
+           Raw["0xFF"]
+       end
+       subgraph "As uint8_t"
+           U["255"]
+       end
+       subgraph "As int8_t"
+           S["-1 (two's complement)"]
+       end
+       Raw --> U
+       Raw --> S
+
+Floating-Point Fields
+---------------------
+
+IEEE 754 floats (4 bytes) and doubles (8 bytes) are parsed using ``std::bit_cast``:
+
+.. mermaid::
+
+   graph LR
+       subgraph "4 Bytes (Big-Endian)"
+           B0["0x40"]
+           B1["0x48"]
+           B2["0xF5"]
+           B3["0xC3"]
+       end
+       subgraph "Assembly"
+           Asm["0x4048F5C3"]
+       end
+       subgraph "bit_cast"
+           F["float: 3.14"]
+       end
+       B0 --> Asm
+       B1 --> Asm
+       B2 --> Asm
+       B3 --> Asm
+       Asm --> F
+
+Frame Structure
+---------------
+
+The ``FrameDefinition`` system wraps payloads in a protocol frame:
+
+.. mermaid::
+
+   graph LR
+       subgraph "Frame Layout"
+           H["Header (1B)"]
+           L["Length (1B)"]
+           P["Payload (N bytes)"]
+           C["CRC-8 (0 or 1B)"]
+           T["Trailer (1B)"]
+       end
+       H --> L --> P --> C --> T
+
+.. mermaid::
+
+   graph TD
+       subgraph "Example: FrameDefinition<0xAA, 0x55, 32, true>"
+           H["0xAA"]
+           L["0x03"]
+           P1["0x01"]
+           P2["0x02"]
+           P3["0x03"]
+           CRC["CRC-8"]
+           T["0x55"]
+       end
+       H --> L
+       L --> P1
+       P1 --> P2
+       P2 --> P3
+       P3 --> CRC
+       CRC --> T
+
+The frame overhead is calculated as: ``header(1) + length(1) + [crc(1)] + trailer(1)``.
+
+CRC Placement
+-------------
+
+CRC/checksum fields protect the integrity of preceding data:
+
+.. mermaid::
+
+   graph LR
+       subgraph "Message with CRC-8"
+           D0["Data[0]"]
+           D1["Data[1]"]
+           D2["Data[2]"]
+           D3["Data[3]"]
+           CRC["CRC-8"]
+       end
+       D0 --> CRC
+       D1 --> CRC
+       D2 --> CRC
+       D3 --> CRC
+
+The ``verifyCrc8`` and ``verifyCrc16`` functions take template parameters specifying
+which bytes are covered and where the CRC is stored.
+
+Serialization (Encode) Flow
+----------------------------
+
+The encode path mirrors the parse path in reverse:
+
+.. mermaid::
+
+   flowchart TD
+       Start[Typed Value] --> Enum{Is Enum?}
+       Enum -->|Yes| ToUnderlying[std::to_underlying]
+       Enum -->|No| Raw[Use directly]
+       ToUnderlying --> Order{Byte Order?}
+       Raw --> Order
+       Order -->|Big-Endian| BE[Write MSB first]
+       Order -->|Little-Endian| LE[Write LSB first]
+       BE --> Done[Bytes written to array]
+       LE --> Done
