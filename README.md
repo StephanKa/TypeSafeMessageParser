@@ -124,22 +124,85 @@ forEachField([](const auto &f) { /* process each field */ },
 
 ## API Overview
 
+### Core Types & Parsing
+
 | Function / Type | Description |
 |---|---|
 | `FieldConfiguration<Index, T, Range, Order>` | Declares a field: byte index, value type, optional range constraint, optional byte order |
+| `BitFieldConfiguration<ByteIdx, BitOff, BitWidth, T, Range>` | Declares a bit-level field within a byte |
+| `NamedFieldConfiguration<Index, T, Range, Order>` | Field with an attached `string_view` name for debugging |
 | `MinMaxRange<T>{min, max}` | Inclusive minimum/maximum range |
 | `SpecificRange<V...>{}` | Exact set of allowed values |
+| `CustomRange<T, Pred>{predicate}` | Custom validator — any `constexpr` callable returning `bool` |
 | `ByteOrder::BigEndian` / `ByteOrder::LittleEndian` | Byte order for multi-byte fields (default: BigEndian) |
-| `ParseError` | Enum: `ValueNotExist`, `BelowRange`, `AboveRange`, `InvalidSize` |
+| `ParseError` | Enum: `ValueNotExist`, `BelowRange`, `AboveRange`, `InvalidSize`, `ChecksumMismatch`, `CustomValidationFailed` |
 | `to_string(ParseError)` | Returns a `std::string_view` description of the error |
 | `convertByteType(msg, field)` | Reads the field from `msg`, validates its range, returns `std::expected<T, ParseError>` |
+| `convertBitField(msg, field)` | Reads a bit-field from `msg` with range validation |
 | `getField<Field>(msg)` | Reads a single byte and casts it to the field's type (no range check) |
+| `getFloatField<Index, Order>(msg)` | Parses an IEEE 754 `float` from raw bytes |
+| `getDoubleField<Index, Order>(msg)` | Parses an IEEE 754 `double` from raw bytes |
 | `parseMessage(msg, fields...)` | Validates that all field sizes add up to the message size at compile time |
 | `getSize<Fields...>()` | Returns the total byte size of all given fields at compile time |
 | `convertAll(msg, fields...)` | Parses all fields, returns `std::tuple` of `std::expected` results |
 | `validateMessage(msg, fields...)` | Returns `true` if all fields pass range validation |
+| `convertByteTypeIf(msg, field, cond)` | Conditionally parse a field; returns `nullopt` if condition is false |
 | `toUnderlying(value)` | Converts enum to underlying type using `std::to_underlying`, pass-through for non-enums |
 | `IsFieldConfiguration<T>` | Concept constraining valid field configuration types |
+| `IsBitFieldConfiguration<T>` | Concept constraining valid bit-field configuration types |
+
+### Serialization (Encode)
+
+| Function | Description |
+|---|---|
+| `encodeField(msg, field, value)` | Write a typed value into a byte array at the field's position |
+| `encodeFieldChecked(msg, field, value)` | Same as above with range validation, returns `std::expected<void, ParseError>` |
+| `encodeFloatField<Index, Order>(msg, value)` | Encode a `float` into message bytes |
+| `encodeDoubleField<Index, Order>(msg, value)` | Encode a `double` into message bytes |
+
+### Cross-field & Conditional Validation
+
+| Function | Description |
+|---|---|
+| `validateCrossField(msg, predicate)` | Validate with a predicate that receives the full message |
+| `validateCrossFields(msg, preds...)` | Multiple cross-field predicates; all must pass |
+
+### CRC / Checksum
+
+| Function | Description |
+|---|---|
+| `computeCrc8(data)` | CRC-8 (polynomial 0x07) |
+| `computeCrc16(data)` | CRC-16 CCITT (polynomial 0x1021, init 0xFFFF) |
+| `computeCrc32(data)` | CRC-32 (reflected, polynomial 0xEDB88320) |
+| `computeChecksum8(data)` | Simple 8-bit sum checksum |
+| `verifyCrc8<start, len, crcIdx>(msg)` | Verify CRC-8 at a given position |
+| `verifyCrc16<start, len, crcIdx, Order>(msg)` | Verify CRC-16 at a given position |
+
+### Message Framing
+
+| Function / Type | Description |
+|---|---|
+| `FrameDefinition<Header, Trailer, MaxPayload, HasCrc>` | Define a frame format |
+| `buildFrame<Frame>(payload)` | Construct a framed message from payload bytes |
+| `parseFrame<Frame>(data)` | Validate frame and extract payload `std::span` |
+
+### Message ID Dispatch
+
+| Function / Type | Description |
+|---|---|
+| `MessageEntry<IdType, Id, ParseFunc>` | Maps a message ID to a parse handler |
+| `MessageRegistry<IdType, Entries...>` | Compile-time registry; call `.dispatch(id, payload)` |
+| `makeRegistry<IdType>(entries...)` | Helper to construct a registry |
+
+### Reflection & Ergonomics
+
+| Function | Description |
+|---|---|
+| `forEachField(func, fields...)` | Invoke callable for each field |
+| `forEachFieldIndexed(func, fields...)` | Invoke callable with index for each field |
+| `fieldCount<Fields...>()` | Returns the number of fields |
+| `operator<<(os, ParseError)` | Stream a `ParseError` to `std::ostream` |
+| `std::format("{}", error)` | Format `ParseError` via `std::formatter` specialization |
 
 ## Requirements
 
@@ -242,19 +305,61 @@ Available sanitizers (via CMake options):
 
 ## Testing
 
-The project uses [Catch2](https://github.com/catchorg/Catch2) v3 with 60+ test cases covering:
+The project uses [Catch2](https://github.com/catchorg/Catch2) v3 with 100+ test cases covering:
 
 - Field size calculations
 - MinMaxRange boundary validation (exact min, exact max, below, above)
 - SpecificRange validation (single value, enum values, boundary values)
 - Multi-byte big-endian and little-endian parsing
+- Signed integer parsing (int8_t, int16_t)
+- Floating-point field parsing (float, double)
+- Bit-field parsing (partial byte fields)
+- Custom validator predicates (`CustomRange`)
+- Cross-field validation
+- Optional/conditional field parsing
+- Message serialization (encode) and roundtrip tests
+- CRC-8, CRC-16, CRC-32, and checksum computation
+- Message framing (build and parse, with/without CRC)
+- Message ID dispatch registry
+- `std::span` support for all operations
+- Named fields
+- Reflection / field iteration
+- `std::format` and `operator<<` for `ParseError`
 - Enum field parsing with underlying type conversion
 - `validateMessage` and `convertAll` batch operations
-- `ParseError` string conversion
-- `IsFieldConfiguration` concept validation
+- `IsFieldConfiguration` / `IsBitFieldConfiguration` concept validation
 - End-to-end multi-field message parsing
 
-All parsing tests use `STATIC_REQUIRE` to verify compile-time evaluation.
+All parsing tests use `STATIC_REQUIRE` to verify compile-time evaluation where possible.
+
+## Benchmarks
+
+Catch2 benchmarks are included in `test/benchmark/` covering:
+
+- Single-field parsing (uint8_t, uint16_t, uint32_t, both endians)
+- Multi-field batch operations (`convertAll`, `validateMessage`)
+- Range validation types (MinMaxRange, SpecificRange, CustomRange)
+- Serialization (encode with/without validation)
+- CRC computation (CRC-8, CRC-16, CRC-32 over 8 and 64 bytes)
+- Frame parsing (with and without CRC)
+- `std::span` vs `std::array` performance comparison
+- Bit-field and float parsing
+
+Run benchmarks:
+```bash
+cmake --build --preset <PRESET_NAME> --target benchmarks
+./benchmarks --benchmark-samples 100
+```
+
+## Single-Header Distribution
+
+Generate a single amalgamated header for easy integration:
+
+```bash
+cmake --build --preset <PRESET_NAME> --target single_header
+```
+
+This produces `single_include/MessageParser.h` — a single file you can drop into any project.
 
 ## Documentation
 
