@@ -8,14 +8,31 @@ A **header-only, compile-time type-safe message parser library for C++23**. It p
 - **Compile-time parsing** — all parsing and validation can be performed via `constexpr`/`consteval`, catching errors at build time instead of runtime
 - **Type-safe field mapping** — fields are declared with an explicit type (`uint8_t`, `uint16_t`, `enum`, …) and a byte index; the parser reads and casts accordingly
 - **Range validation** — every field can carry a `MinMaxRange<T>` (inclusive min/max) or a `SpecificRange<V...>` (exact allowed values); validation returns `std::expected<T, ParseError>` so errors are always handled explicitly
+- **Custom validator predicates** — supply a `constexpr` lambda as a `CustomRange` to implement arbitrary validation logic (e.g., "must be a multiple of 4")
+- **Cross-field validation** — validate constraints that depend on multiple fields using `validateCrossField()` / `validateCrossFields()`
+- **Optional/conditional fields** — `convertByteTypeIf()` parses a field only when a runtime condition is met
 - **Enum support** — enum values are first-class citizens; a field typed as an enum is read from raw bytes and validated through the same range mechanism
+- **Signed integer support** — `int8_t`, `int16_t`, `int32_t` fields are parsed correctly via two's complement
+- **Floating-point fields** — `getFloatField()` / `getDoubleField()` parse IEEE 754 `float`/`double` from raw bytes
+- **Bit-field support** — `BitFieldConfiguration` allows parsing fields that span partial bytes (e.g., 3-bit flag at bit offset 5)
 - **Multi-byte fields** — fields wider than one byte (e.g., `uint16_t`, `uint32_t`) are supported
 - **Byte order control** — fields can be parsed as **big-endian** (default) or **little-endian** via the `ByteOrder` template parameter
+- **Message serialization (encode)** — `encodeField()` and `encodeFieldChecked()` write typed values back into byte arrays with the same compile-time safety
+- **CRC/checksum verification** — built-in `computeCrc8()`, `computeCrc16()`, `computeCrc32()`, and `verifyCrc8()`/`verifyCrc16()` for integrity checking
+- **Message framing** — `FrameDefinition` + `buildFrame()` / `parseFrame()` handle header/length/payload/CRC/trailer structure
+- **Message ID dispatch** — compile-time `MessageRegistry` maps message IDs to type-safe parse handlers
+- **Named fields** — `NamedFieldConfiguration` attaches a `string_view` name for debug printing and logging
+- **Reflection / field iteration** — `forEachField()`, `forEachFieldIndexed()`, `fieldCount()` for iterating over field definitions
+- **`std::span` support** — all parsing functions accept `std::span<const uint8_t>` in addition to `std::array`
+- **`std::format` integration** — `ParseError` has a `std::formatter` specialization for use with `std::format`
+- **`operator<<` overload** — stream `ParseError` to any `std::ostream`
 - **Static size checks** — `parseMessage()` `static_assert`s at compile time that the sum of all field sizes equals the actual array size, preventing buffer over/under-reads
-- **Rich error information** — `ParseError` distinguishes `ValueNotExist`, `BelowRange`, `AboveRange`, and `InvalidSize`
+- **Rich error information** — `ParseError` distinguishes `ValueNotExist`, `BelowRange`, `AboveRange`, `InvalidSize`, `ChecksumMismatch`, and `CustomValidationFailed`
 - **Batch operations** — `convertAll()` parses all fields at once returning a tuple; `validateMessage()` checks all fields in one call
 - **`to_string` for errors** — `FieldRanges::to_string(ParseError)` provides human-readable error descriptions
-- **C++23 utilities** — uses `std::to_underlying`, `consteval`, concepts, and `std::expected`
+- **Single-header packaging** — CMake target `single_header` produces a single amalgamated header for easy distribution
+- **Benchmark suite** — Catch2 benchmarks comparing parsing overhead across all operations
+- **C++23 utilities** — uses `std::to_underlying`, `consteval`, concepts, `std::expected`, and `std::bit_cast`
 
 ## Usage
 
@@ -53,6 +70,56 @@ static_assert(validateMessage(msg, Fields::status, Fields::motor, Fields::rpm, F
 
 // Parse all fields at once
 auto [status, motor, rpm, sensor] = convertAll(msg, Fields::status, Fields::motor, Fields::rpm, Fields::sensor);
+
+// 4. Custom validator predicate
+constexpr auto isMultOf4 = [](auto val) constexpr { return val % 4 == 0; };
+static constexpr auto aligned = FieldConfiguration<0, uint8_t,
+    CustomRange<uint8_t, decltype(isMultOf4)>{ isMultOf4 }>{};
+
+// 5. Encode values back into a byte array
+std::array<uint8_t, 6> outMsg{};
+encodeField(outMsg, Fields::rpm, uint16_t{5000});
+auto encResult = encodeFieldChecked(outMsg, Fields::rpm, uint16_t{5000}); // with range check
+
+// 6. Bit-field parsing (3 bits starting at bit offset 2 in byte 0)
+static constexpr auto flags = BitFieldConfiguration<0, 2, 3, uint8_t>{};
+auto bitResult = convertBitField(msg, flags);
+
+// 7. Float/double parsing
+constexpr std::array<uint8_t, 4> floatMsg = { 0x40, 0x48, 0xF5, 0xC3 };
+auto temp = getFloatField<0, ByteOrder::BigEndian>(floatMsg); // 3.14f
+
+// 8. CRC verification
+auto crcOk = verifyCrc8<0, 4, 4>(msg); // verify CRC-8 of bytes [0..3] against byte[4]
+
+// 9. Message framing
+using MyFrame = FrameDefinition<0xAA, 0x55, 32, true>; // header=0xAA, trailer=0x55, CRC enabled
+std::array<uint8_t, 3> payload = { 0x01, 0x02, 0x03 };
+auto frame = buildFrame<MyFrame>(payload);
+auto parsed = parseFrame<MyFrame>(std::span<const uint8_t>(frame));
+
+// 10. Cross-field validation
+auto crossValid = validateCrossField(msg, [](const auto &m) {
+    auto s = convertByteType(m, Fields::status);
+    auto r = convertByteType(m, Fields::rpm);
+    if (s.has_value() && *s == Status::Error) return r.has_value() && *r == 0;
+    return true;
+});
+
+// 11. std::span support — all functions also accept span
+std::span<const uint8_t> spanMsg(msg);
+auto spanResult = convertByteType(spanMsg, Fields::rpm);
+
+// 12. std::format integration
+auto errStr = std::format("Error: {}", ParseError::BelowRange); // "Error: BelowRange"
+
+// 13. Named fields for debugging
+static constexpr auto namedRpm = NamedFieldConfiguration<2, uint16_t,
+    MinMaxRange<uint16_t>{1000, 65000}>{ .name = "engine_rpm" };
+
+// 14. Field iteration / reflection
+forEachField([](const auto &f) { /* process each field */ },
+    Fields::status, Fields::motor, Fields::rpm, Fields::sensor);
 ```
 
 ## API Overview
