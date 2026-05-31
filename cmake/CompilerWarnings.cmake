@@ -1,6 +1,7 @@
 # from here:
 #
 # https://github.com/lefticus/cppbestpractices/blob/master/02-Use_the_Tools_Available.md
+# Updated for GCC 15, Clang 20+, MSVC 2022 17.x with C++23 support
 
 FUNCTION(SET_PROJECT_WARNINGS project_name)
 
@@ -28,6 +29,11 @@ FUNCTION(SET_PROJECT_WARNINGS project_name)
         /w14906 # string literal cast to 'LPWSTR'
         /w14928 # illegal copy-initialization; more than one user-defined conversion has been implicitly applied
         /permissive- # standards conformance mode for MSVC compiler.
+        /w14868 # compiler may not enforce left-to-right evaluation order in braced initializer list
+        /w15038 # data member will be initialized after data member
+        /w15204 # virtual class has non-virtual trivial destructor
+        /w15233 # explicit lambda capture not used
+        /analyze:external- # don't analyze external headers
         )
 
     SET(CLANG_WARNINGS
@@ -47,6 +53,11 @@ FUNCTION(SET_PROJECT_WARNINGS project_name)
         -Wdouble-promotion # warn if float is implicit promoted to double
         -Wformat=2 # warn on security issues around functions that format output (ie printf)
         -Wimplicit-fallthrough # warn on statements that fallthrough without an explicit annotation
+        -Wlifetime # warn about lifetime issues (Clang 17+)
+        -Wextra-semi # warn about redundant semicolons
+        -Wsuggest-override # warn when override could be used
+        -Wunreachable-code # warn about unreachable code
+        -Wno-unknown-warning-option # don't error on unknown warnings for cross-compiler compat
         )
 
     IF(WARNINGS_AS_ERRORS)
@@ -61,6 +72,11 @@ FUNCTION(SET_PROJECT_WARNINGS project_name)
         -Wduplicated-branches # warn if if / else branches have duplicated code
         -Wlogical-op # warn about logical operations being used where bitwise were probably wanted
         -Wuseless-cast # warn if you perform a cast to the same type
+        -Wconsumed # warn about consumed analysis violations (GCC 14+)
+        -Wtrivial-auto-var-init # warn about uninitialized trivial automatic variables (GCC 14+)
+        -Wcast-qual # warn about cast that removes const qualifier
+        -Wredundant-decls # warn about redundant declarations
+        -Wstrict-null-sentinel # warn about null sentinel usage
         )
 
     IF(MSVC)
