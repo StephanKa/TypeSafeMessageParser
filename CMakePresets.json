@@ -211,6 +211,50 @@
       }
     },
     {
+      "name": "unixlike-gcc-15-debug",
+      "displayName": "GCC 15 Debug",
+      "description": "Target Unix-like OS with the GCC 15 compiler, debug build type",
+      "inherits": "conf-unixlike-common",
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "gcc-15",
+        "CMAKE_CXX_COMPILER": "g++-15",
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+    {
+      "name": "unixlike-gcc-15-release",
+      "displayName": "GCC 15 Release",
+      "description": "Target Unix-like OS with the GCC 15 compiler, release build type",
+      "inherits": "conf-unixlike-common",
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "gcc-15",
+        "CMAKE_CXX_COMPILER": "g++-15",
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo"
+      }
+    },
+    {
+      "name": "unixlike-clang-21-debug",
+      "displayName": "Clang 21 Debug",
+      "description": "Target Unix-like OS with the Clang 21 compiler, debug build type",
+      "inherits": "conf-unixlike-common",
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "clang-21",
+        "CMAKE_CXX_COMPILER": "clang++-21",
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+    {
+      "name": "unixlike-clang-21-release",
+      "displayName": "Clang 21 Release",
+      "description": "Target Unix-like OS with the Clang 21 compiler, release build type",
+      "inherits": "conf-unixlike-common",
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "clang-21",
+        "CMAKE_CXX_COMPILER": "clang++-21",
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo"
+      }
+    },
+    {
       "name": "unixlike-clang-19-debug-static-analysis",
       "displayName": "Clang 19 Debug - Static Analysis",
       "description": "Target Unix-like OS with the Clang 19 compiler, debug build type",
@@ -290,6 +334,26 @@
       "name": "build-unixlike-clang-19-debug-static-analysis",
       "displayName": "Linux Clang 19 Debug Static Analysis",
       "configurePreset": "unixlike-clang-19-debug-static-analysis"
+    },
+    {
+      "name": "build-unixlike-gcc-15-debug",
+      "displayName": "Linux GCC 15 Debug",
+      "configurePreset": "unixlike-gcc-15-debug"
+    },
+    {
+      "name": "build-unixlike-gcc-15-release",
+      "displayName": "Linux GCC 15 Release",
+      "configurePreset": "unixlike-gcc-15-release"
+    },
+    {
+      "name": "build-unixlike-clang-21-debug",
+      "displayName": "Linux Clang 21 Debug",
+      "configurePreset": "unixlike-clang-21-debug"
+    },
+    {
+      "name": "build-unixlike-clang-21-release",
+      "displayName": "Linux Clang 21 Release",
+      "configurePreset": "unixlike-clang-21-release"
     }
   ],
   "testPresets": [
@@ -388,6 +452,30 @@
       "displayName": "Linux Clang 20 Release",
       "inherits": "test-common",
       "configurePreset": "unixlike-clang-20-release"
+    },
+    {
+      "name": "test-unixlike-gcc-15-debug",
+      "displayName": "Linux GCC 15 Debug",
+      "inherits": "test-common",
+      "configurePreset": "unixlike-gcc-15-debug"
+    },
+    {
+      "name": "test-unixlike-gcc-15-release",
+      "displayName": "Linux GCC 15 Release",
+      "inherits": "test-common",
+      "configurePreset": "unixlike-gcc-15-release"
+    },
+    {
+      "name": "test-unixlike-clang-21-debug",
+      "displayName": "Linux Clang 21 Debug",
+      "inherits": "test-common",
+      "configurePreset": "unixlike-clang-21-debug"
+    },
+    {
+      "name": "test-unixlike-clang-21-release",
+      "displayName": "Linux Clang 21 Release",
+      "inherits": "test-common",
+      "configurePreset": "unixlike-clang-21-release"
     }
   ]
 }
