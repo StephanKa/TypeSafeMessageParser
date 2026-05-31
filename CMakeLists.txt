@@ -71,3 +71,16 @@ IF(ENABLE_TESTING)
     MESSAGE("Building Tests. Be sure to check out test/constexpr_tests for constexpr testing")
     ADD_SUBDIRECTORY(test)
 ENDIF()
+
+# Single-header amalgamation target
+FIND_PACKAGE(Python3 COMPONENTS Interpreter QUIET)
+IF(Python3_FOUND)
+    ADD_CUSTOM_TARGET(single_header
+        COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/scripts/amalgamate.py
+            --input ${CMAKE_SOURCE_DIR}/src/include/MessageParser.h
+            --output ${CMAKE_SOURCE_DIR}/single_include/MessageParser.h
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        COMMENT "Generating single-header amalgamation"
+        VERBATIM
+    )
+ENDIF()
