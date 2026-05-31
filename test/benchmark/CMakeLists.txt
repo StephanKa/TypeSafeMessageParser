@@ -1,0 +1,6 @@
+FIND_PACKAGE(Catch2 REQUIRED)
+
+ADD_EXECUTABLE(benchmarks benchmarks.cpp)
+TARGET_LINK_LIBRARIES(benchmarks PRIVATE project_options project_warnings Catch2::Catch2WithMain)
+TARGET_INCLUDE_DIRECTORIES(benchmarks PRIVATE ${PROJECT_SOURCE_DIR}/src/include)
+TARGET_COMPILE_DEFINITIONS(benchmarks PRIVATE CATCH_CONFIG_ENABLE_BENCHMARKING)
