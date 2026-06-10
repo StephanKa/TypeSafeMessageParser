@@ -9,21 +9,21 @@ class TypeSafeMessageParserConan(ConanFile):
     license = 'MIT'
     package_type = 'header-library'
     settings = 'os', 'compiler', 'build_type', 'arch'
+    generators = 'CMakeDeps'
     exports_sources = 'src/include/*'
     default_options = {'spdlog/*:header_only': True}
 
     def requirements(self):
-        self.requires('spdlog/1.15.1')
-
-    def build_requirements(self):
-        self.test_requires('catch2/3.8.1')
+        self.requires('spdlog/1.17.0')
+        self.requires('catch2/3.15.0')
 
     def layout(self):
         cmake_layout(self)
 
     def generate(self):
         tc = CMakeToolchain(self)
-        tc.user_presets_path = None
+        tc.variables["CMAKE_CXX_STANDARD"] = 23
+        tc.variables["CMAKE_CXX_FLAGS"] = "-Wno-nullability-extension"
         tc.generate()
 
     def build(self):
