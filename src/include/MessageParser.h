@@ -35,14 +35,26 @@ namespace FieldRanges
     {
         switch (error)
         {
-        case ParseError::ValueNotExist: return "ValueNotExist";
-        case ParseError::BelowRange: return "BelowRange";
-        case ParseError::AboveRange: return "AboveRange";
-        case ParseError::InvalidSize: return "InvalidSize";
-        case ParseError::ChecksumMismatch: return "ChecksumMismatch";
-        case ParseError::CustomValidationFailed: return "CustomValidationFailed";
+        case ParseError::ValueNotExist:
+            return "ValueNotExist";
+        case ParseError::BelowRange:
+            return "BelowRange";
+        case ParseError::AboveRange:
+            return "AboveRange";
+        case ParseError::InvalidSize:
+            return "InvalidSize";
+        case ParseError::ChecksumMismatch:
+            return "ChecksumMismatch";
+        case ParseError::CustomValidationFailed:
+            return "CustomValidationFailed";
         }
         return "Unknown";
+    }
+
+    /// Stream insertion for ParseError (placed in FieldRanges for ADL).
+    inline std::ostream &operator<<(std::ostream &os, ParseError error)
+    {
+        return os << to_string(error);
     }
 
     // range definition for defining value with minimum and maximum values
@@ -95,11 +107,28 @@ enum class ByteOrder : std::uint8_t
     LittleEndian
 };
 
+template<typename T>
+struct DefaultRangeValueTypeHelper
+{
+    using type = T;
+};
+
+template<typename T>
+    requires std::is_enum_v<T>
+struct DefaultRangeValueTypeHelper<T>
+{
+    using type = std::underlying_type_t<T>;
+};
+
+template<typename T>
+using DefaultRangeValueType = DefaultRangeValueTypeHelper<T>::type;
+
 // definition of a Field
 template<std::size_t index,
-    typename FieldType,
-    auto Range = FieldRanges::MinMaxRange{ .min = std::numeric_limits<uint32_t>::min(), .max = std::numeric_limits<uint32_t>::max() },
-    ByteOrder Order = ByteOrder::BigEndian>
+  typename FieldType,
+  auto Range =
+    FieldRanges::MinMaxRange{ .min = std::numeric_limits<DefaultRangeValueType<FieldType>>::lowest(), .max = std::numeric_limits<DefaultRangeValueType<FieldType>>::max() },
+  ByteOrder Order = ByteOrder::BigEndian>
 struct FieldConfiguration
 {
     static constexpr std::size_t byteIndex{ index };
@@ -114,8 +143,12 @@ struct FieldConfiguration
 // ============================================================================
 
 /// Configuration for a field that spans partial bytes (bit-level access)
-template<std::size_t byteIdx, std::size_t bitOffset, std::size_t bitWidth, typename FieldType,
-    auto Range = FieldRanges::MinMaxRange{ .min = std::numeric_limits<uint32_t>::min(), .max = std::numeric_limits<uint32_t>::max() }>
+template<std::size_t byteIdx,
+  std::size_t bitOffset,
+  std::size_t bitWidth,
+  typename FieldType,
+  auto Range =
+    FieldRanges::MinMaxRange{ .min = std::numeric_limits<DefaultRangeValueType<FieldType>>::lowest(), .max = std::numeric_limits<DefaultRangeValueType<FieldType>>::max() }>
 struct BitFieldConfiguration
 {
     static constexpr std::size_t byteIndex{ byteIdx };
@@ -132,9 +165,11 @@ struct BitFieldConfiguration
 // ============================================================================
 
 /// A FieldConfiguration with an attached compile-time name for debug/logging
-template<std::size_t index, typename FieldType,
-    auto Range = FieldRanges::MinMaxRange{ .min = std::numeric_limits<uint32_t>::min(), .max = std::numeric_limits<uint32_t>::max() },
-    ByteOrder Order = ByteOrder::BigEndian>
+template<std::size_t index,
+  typename FieldType,
+  auto Range =
+    FieldRanges::MinMaxRange{ .min = std::numeric_limits<DefaultRangeValueType<FieldType>>::lowest(), .max = std::numeric_limits<DefaultRangeValueType<FieldType>>::max() },
+  ByteOrder Order = ByteOrder::BigEndian>
 struct NamedFieldConfiguration
 {
     static constexpr std::size_t byteIndex{ index };
@@ -178,8 +213,46 @@ namespace MessageParser
     };
 
     // ========================================================================
+    // Compile-time factory helpers
+    // ========================================================================
+
+    /// Compile-time factory for creating field configurations.
+    template<std::size_t index,
+      typename FieldType,
+      auto Range = FieldRanges::MinMaxRange{ .min = std::numeric_limits<uint32_t>::min(), .max = std::numeric_limits<uint32_t>::max() },
+      ByteOrder Order = ByteOrder::BigEndian>
+    consteval auto makeField()
+    {
+        return FieldConfiguration<index, FieldType, Range, Order>{};
+    }
+
+    /// Compile-time factory for creating bit-field configurations.
+    template<std::size_t byteIdx,
+      std::size_t bitOffset,
+      std::size_t bitWidth,
+      typename FieldType,
+      auto Range = FieldRanges::MinMaxRange{ .min = std::numeric_limits<uint32_t>::min(), .max = std::numeric_limits<uint32_t>::max() }>
+    consteval auto makeBitField()
+    {
+        return BitFieldConfiguration<byteIdx, bitOffset, bitWidth, FieldType, Range>{};
+    }
+
+    // ========================================================================
     // Core parsing functions
     // ========================================================================
+
+    constexpr auto valueForComparison(const auto &value)
+    {
+        using Type = std::remove_cvref_t<decltype(value)>;
+        if constexpr (std::is_enum_v<Type>)
+        {
+            return std::to_underlying(value);
+        }
+        else
+        {
+            return value;
+        }
+    }
 
     template<typename Field>
     constexpr decltype(Field::type) getField(const auto &msg)
@@ -227,11 +300,15 @@ namespace MessageParser
         }
         else if constexpr (FieldRanges::IsMinMaxRange<RangeType>)
         {
-            if (value < Field::range.min)
+            const auto cmpValue = valueForComparison(value);
+            const auto cmpMin = valueForComparison(Field::range.min);
+            const auto cmpMax = valueForComparison(Field::range.max);
+
+            if (cmpValue < cmpMin)
             {
                 return std::unexpected(FieldRanges::ParseError::BelowRange);
             }
-            if (value > Field::range.max)
+            if (cmpValue > cmpMax)
             {
                 return std::unexpected(FieldRanges::ParseError::AboveRange);
             }
@@ -299,15 +376,15 @@ namespace MessageParser
                 for (std::size_t i = 1; i <= Field::byteLength; ++i)
                 {
                     constexpr std::size_t BITS_PER_BYTE{ 8 };
-                    tempValue |= (static_cast<ReturnType>(msg.at(Field::byteIndex + Field::byteLength - i)) << ((i - 1) * BITS_PER_BYTE));
+                    tempValue |= static_cast<ReturnType>(static_cast<ReturnType>(msg.at(Field::byteIndex + Field::byteLength - i)) << ((i - 1) * BITS_PER_BYTE));
                 }
             }
-            else // LittleEndian
+            else// LittleEndian
             {
                 for (std::size_t i = 0; i < Field::byteLength; ++i)
                 {
                     constexpr std::size_t BITS_PER_BYTE{ 8 };
-                    tempValue |= (static_cast<ReturnType>(msg.at(Field::byteIndex + i)) << (i * BITS_PER_BYTE));
+                    tempValue |= static_cast<ReturnType>(static_cast<ReturnType>(msg.at(Field::byteIndex + i)) << (i * BITS_PER_BYTE));
                 }
             }
             return RangeChecker<Field>(static_cast<Type>(tempValue));
@@ -334,7 +411,7 @@ namespace MessageParser
                 for (std::size_t i = 1; i <= Field::byteLength; ++i)
                 {
                     constexpr std::size_t BITS_PER_BYTE{ 8 };
-                    tempValue |= (static_cast<ReturnType>(msg[Field::byteIndex + Field::byteLength - i]) << ((i - 1) * BITS_PER_BYTE));
+                    tempValue |= static_cast<ReturnType>(static_cast<ReturnType>(msg[Field::byteIndex + Field::byteLength - i]) << ((i - 1) * BITS_PER_BYTE));
                 }
             }
             else
@@ -342,7 +419,7 @@ namespace MessageParser
                 for (std::size_t i = 0; i < Field::byteLength; ++i)
                 {
                     constexpr std::size_t BITS_PER_BYTE{ 8 };
-                    tempValue |= (static_cast<ReturnType>(msg[Field::byteIndex + i]) << (i * BITS_PER_BYTE));
+                    tempValue |= static_cast<ReturnType>(static_cast<ReturnType>(msg[Field::byteIndex + i]) << (i * BITS_PER_BYTE));
                 }
             }
             return RangeChecker<Field>(static_cast<Type>(tempValue));
@@ -466,6 +543,50 @@ namespace MessageParser
         return (convertByteType(msg, fields).has_value() && ...);
     }
 
+    /// A compile-time message schema that groups field configurations.
+    template<IsFieldConfiguration... Fields>
+    struct MessageSchema
+    {
+        std::tuple<Fields...> fields;
+
+        constexpr explicit MessageSchema(Fields... configuredFields) : fields{ configuredFields... }
+        {}
+
+        /// Parse all fields in this schema.
+        template<typename Message>
+        constexpr auto convertAll(const Message &msg) const
+        {
+            return std::apply([&msg](const auto &...configuredFields) { return MessageParser::convertAll(msg, configuredFields...); }, fields);
+        }
+
+        /// Validate all fields in this schema.
+        template<typename Message>
+        constexpr bool validate(const Message &msg) const
+        {
+            return std::apply([&msg](const auto &...configuredFields) { return MessageParser::validateMessage(msg, configuredFields...); }, fields);
+        }
+
+        /// Parse using parseMessage for the schema fields.
+        template<typename Message>
+        constexpr void parse(const Message &msg) const
+        {
+            std::apply([&msg](const auto &...configuredFields) { MessageParser::parseMessage(msg, configuredFields...); }, fields);
+        }
+
+        /// Total byte size as defined by configured fields.
+        static consteval std::size_t sizeBytes()
+        {
+            return getSize<Fields...>();
+        }
+    };
+
+    /// Factory for creating a compile-time schema from field configurations.
+    template<IsFieldConfiguration... Fields>
+    constexpr auto makeSchema(Fields... fields)
+    {
+        return MessageSchema<Fields...>{ fields... };
+    }
+
     // ========================================================================
     // Message serialization (encode)
     // ========================================================================
@@ -475,17 +596,16 @@ namespace MessageParser
     constexpr void encodeField(std::array<T, size> &msg, [[maybe_unused]] const Field &field, const decltype(Field::type) &value)
     {
         using ValueType = std::remove_cvref_t<decltype(Field::type)>;
-        using RawType = std::conditional_t<std::is_enum_v<ValueType>, std::underlying_type_t<ValueType>, ValueType>;
-
-        RawType rawValue{};
-        if constexpr (std::is_enum_v<ValueType>)
-        {
-            rawValue = std::to_underlying(value);
-        }
-        else
-        {
-            rawValue = value;
-        }
+        const auto rawValue = [&value]() constexpr {
+            if constexpr (std::is_enum_v<ValueType>)
+            {
+                return std::to_underlying(value);
+            }
+            else
+            {
+                return value;
+            }
+        }();
 
         if constexpr (Field::byteLength == 1)
         {
@@ -498,11 +618,10 @@ namespace MessageParser
             {
                 for (std::size_t i = 0; i < Field::byteLength; ++i)
                 {
-                    msg.at(Field::byteIndex + i) = static_cast<std::uint8_t>(
-                        rawValue >> ((Field::byteLength - 1 - i) * BITS_PER_BYTE));
+                    msg.at(Field::byteIndex + i) = static_cast<std::uint8_t>(rawValue >> ((Field::byteLength - 1 - i) * BITS_PER_BYTE));
                 }
             }
-            else // LittleEndian
+            else// LittleEndian
             {
                 for (std::size_t i = 0; i < Field::byteLength; ++i)
                 {
@@ -514,8 +633,7 @@ namespace MessageParser
 
     /// Encode a single field with range validation, returns expected
     template<typename Field, typename T, std::size_t size>
-    constexpr std::expected<void, FieldRanges::ParseError> encodeFieldChecked(
-        std::array<T, size> &msg, [[maybe_unused]] const Field &field, const decltype(Field::type) &value)
+    constexpr std::expected<void, FieldRanges::ParseError> encodeFieldChecked(std::array<T, size> &msg, [[maybe_unused]] const Field &field, const decltype(Field::type) &value)
     {
         auto validated = RangeChecker<Field>(value);
         if (!validated.has_value())
@@ -593,7 +711,7 @@ namespace MessageParser
     /// Parse a field only if a condition is true; returns std::nullopt if condition is false
     template<typename Field>
     constexpr auto convertByteTypeIf(const auto &msg, [[maybe_unused]] const Field &field, bool condition)
-        -> std::expected<std::optional<decltype(Field::type)>, FieldRanges::ParseError>
+      -> std::expected<std::optional<decltype(Field::type)>, FieldRanges::ParseError>
     {
         if (!condition)
         {
@@ -677,8 +795,7 @@ namespace MessageParser
     }
 
     /// Verify CRC-16 at a given position (big-endian CRC bytes)
-    template<std::size_t payloadStart, std::size_t payloadLen, std::size_t crcIndex,
-        ByteOrder CrcOrder = ByteOrder::BigEndian, typename T, std::size_t size>
+    template<std::size_t payloadStart, std::size_t payloadLen, std::size_t crcIndex, ByteOrder CrcOrder = ByteOrder::BigEndian, typename T, std::size_t size>
     constexpr std::expected<void, FieldRanges::ParseError> verifyCrc16(const std::array<T, size> &msg)
     {
         auto payload = std::span<const std::uint8_t>(msg.data() + payloadStart, payloadLen);
@@ -712,8 +829,7 @@ namespace MessageParser
     // ========================================================================
 
     /// A framed message definition: header marker, length field, payload, optional CRC, trailer
-    template<std::uint8_t HeaderByte, std::uint8_t TrailerByte, std::size_t MaxPayloadSize,
-        bool HasCrc8 = false>
+    template<std::uint8_t HeaderByte, std::uint8_t TrailerByte, std::size_t MaxPayloadSize, bool HasCrc8 = false>
     struct FrameDefinition
     {
         static constexpr std::uint8_t header{ HeaderByte };
@@ -727,8 +843,7 @@ namespace MessageParser
 
     /// Validate a framed message and extract payload span
     template<typename Frame>
-    constexpr std::expected<std::span<const std::uint8_t>, FieldRanges::ParseError>
-    parseFrame(std::span<const std::uint8_t> data)
+    constexpr std::expected<std::span<const std::uint8_t>, FieldRanges::ParseError> parseFrame(std::span<const std::uint8_t> data)
     {
         if (data.size() < Frame::overhead)
             return std::unexpected(FieldRanges::ParseError::InvalidSize);
@@ -800,7 +915,8 @@ namespace MessageParser
     {
         std::tuple<Entries...> entries;
 
-        constexpr MessageRegistry(Entries... e) : entries{ e... } {}
+        constexpr MessageRegistry(Entries... e) : entries{ e... }
+        {}
 
         /// Dispatch: find entry matching id, invoke its parser on the payload
         template<typename Payload>
@@ -809,7 +925,7 @@ namespace MessageParser
             return dispatchImpl(id, payload, std::index_sequence_for<Entries...>{});
         }
 
-    private:
+      private:
         template<typename Payload, std::size_t... Is>
         constexpr bool dispatchImpl(IdType id, const Payload &payload, std::index_sequence<Is...>) const
         {
@@ -849,15 +965,6 @@ namespace MessageParser
     consteval std::size_t fieldCount()
     {
         return sizeof...(Fields);
-    }
-
-    // ========================================================================
-    // operator<< for ParseError
-    // ========================================================================
-
-    inline std::ostream &operator<<(std::ostream &os, FieldRanges::ParseError error)
-    {
-        return os << FieldRanges::to_string(error);
     }
 
     // ========================================================================
