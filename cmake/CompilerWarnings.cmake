@@ -53,7 +53,6 @@ FUNCTION(SET_PROJECT_WARNINGS project_name)
         -Wdouble-promotion # warn if float is implicit promoted to double
         -Wformat=2 # warn on security issues around functions that format output (ie printf)
         -Wimplicit-fallthrough # warn on statements that fallthrough without an explicit annotation
-        -Wlifetime # warn about lifetime issues (Clang 17+)
         -Wextra-semi # warn about redundant semicolons
         -Wsuggest-override # warn when override could be used
         -Wunreachable-code # warn about unreachable code
@@ -72,7 +71,6 @@ FUNCTION(SET_PROJECT_WARNINGS project_name)
         -Wduplicated-branches # warn if if / else branches have duplicated code
         -Wlogical-op # warn about logical operations being used where bitwise were probably wanted
         -Wuseless-cast # warn if you perform a cast to the same type
-        -Wconsumed # warn about consumed analysis violations (GCC 14+)
         -Wtrivial-auto-var-init # warn about uninitialized trivial automatic variables (GCC 14+)
         -Wcast-qual # warn about cast that removes const qualifier
         -Wredundant-decls # warn about redundant declarations
