@@ -34,6 +34,7 @@ The test suite is organized into the following categories:
        "std::format / operator<<" : 4
        "validateMessage" : 2
        "convertAll" : 2
+      "Factory/schema API" : 5
        "Utility functions" : 4
        "End-to-end" : 1
 

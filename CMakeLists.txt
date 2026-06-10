@@ -72,8 +72,41 @@ IF(ENABLE_TESTING)
     ADD_SUBDIRECTORY(test)
 ENDIF()
 
-# Single-header amalgamation target
+# Documentation and tooling targets
 FIND_PACKAGE(Python3 COMPONENTS Interpreter QUIET)
+IF(ENABLE_SPHINX)
+    IF(Python3_FOUND)
+        ADD_CUSTOM_TARGET(sphinx-docs
+            COMMAND ${Python3_EXECUTABLE} -m sphinx -M html ${CMAKE_SOURCE_DIR}/docs ${CMAKE_SOURCE_DIR}/docs/_build
+            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+            COMMENT "Generating Sphinx documentation in docs/_build/html"
+            VERBATIM
+        )
+    ELSE()
+        MESSAGE(STATUS "Python3 was not found. Target `sphinx-docs` is unavailable.")
+    ENDIF()
+ENDIF()
+
+ADD_CUSTOM_TARGET(docs
+    COMMENT "Build all available documentation targets"
+)
+
+SET(_HAS_DOC_TARGET FALSE)
+IF(TARGET sphinx-docs)
+    ADD_DEPENDENCIES(docs sphinx-docs)
+    SET(_HAS_DOC_TARGET TRUE)
+ENDIF()
+IF(TARGET doxygen-docs)
+    ADD_DEPENDENCIES(docs doxygen-docs)
+    SET(_HAS_DOC_TARGET TRUE)
+ENDIF()
+IF(NOT _HAS_DOC_TARGET)
+    ADD_CUSTOM_COMMAND(TARGET docs
+        COMMAND ${CMAKE_COMMAND} -E echo "No documentation targets available. Enable ENABLE_SPHINX and/or ENABLE_DOXYGEN."
+    )
+ENDIF()
+
+# Single-header amalgamation target
 IF(Python3_FOUND)
     ADD_CUSTOM_TARGET(single_header
         COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/scripts/amalgamate.py

@@ -183,15 +183,15 @@ TEST_CASE("MinMaxRange one above max returns AboveRange")
 TEST_CASE("Check getField")
 {
     using Type = uint8_t;
-    static constexpr auto val = FieldConfiguration<0, Type>{};
+    [[maybe_unused]] static constexpr auto val = FieldConfiguration<0, Type>{};
     struct Message
     {
         std::array<uint8_t, sizeof(Type)> msg;
     };
 
     constexpr Message msg = { 0x42 };
-    const auto returnValue = MessageParser::getField<decltype(val)>(msg.msg);
-    REQUIRE(returnValue == 0x42);
+    constexpr auto returnValue = MessageParser::getField<decltype(val)>(msg.msg);
+    STATIC_REQUIRE(returnValue == 0x42);
 }
 
 TEST_CASE("Check getField with enum")
@@ -211,8 +211,8 @@ TEST_CASE("Check getField with enum")
     };
 
     constexpr Message msg = { 0x2 };
-    const auto returnValue = MessageParser::getField<decltype(val)>(msg.msg);
-    REQUIRE(returnValue == Error::Fatal);
+    constexpr auto returnValue = MessageParser::getField<decltype(val)>(msg.msg);
+    STATIC_REQUIRE(returnValue == Error::Fatal);
 }
 
 TEST_CASE("getField reads correct byte from non-zero index")
@@ -1106,7 +1106,7 @@ TEST_CASE("Roundtrip encode-decode uint16_t preserves value")
 TEST_CASE("CRC-8 computation")
 {
     std::array<uint8_t, 3> data = { 0x01, 0x02, 0x03 };
-    auto crc = MessageParser::computeCrc8(std::span<const uint8_t>(data));
+    const auto crc = MessageParser::computeCrc8(std::span<const uint8_t>(data));
     // Just verify it produces a consistent value and is non-trivial
     REQUIRE(crc != 0);// known non-zero for this input
 }
@@ -1114,15 +1114,15 @@ TEST_CASE("CRC-8 computation")
 TEST_CASE("CRC-8 empty data returns 0")
 {
     std::array<uint8_t, 0> data{};
-    auto crc = MessageParser::computeCrc8(std::span<const uint8_t>(data.data(), 0));
+    const auto crc = MessageParser::computeCrc8(std::span<const uint8_t>(data.data(), 0));
     REQUIRE(crc == 0);
 }
 
 TEST_CASE("CRC-16 computation is consistent")
 {
     std::array<uint8_t, 4> data = { 0xDE, 0xAD, 0xBE, 0xEF };
-    auto crc1 = MessageParser::computeCrc16(std::span<const uint8_t>(data));
-    auto crc2 = MessageParser::computeCrc16(std::span<const uint8_t>(data));
+    const auto crc1 = MessageParser::computeCrc16(std::span<const uint8_t>(data));
+    const auto crc2 = MessageParser::computeCrc16(std::span<const uint8_t>(data));
     REQUIRE(crc1 == crc2);
     REQUIRE(crc1 != 0);
 }
@@ -1131,29 +1131,29 @@ TEST_CASE("CRC-32 known value")
 {
     // "123456789" has CRC-32 = 0xCBF43926
     std::array<uint8_t, 9> data = { '1', '2', '3', '4', '5', '6', '7', '8', '9' };
-    auto crc = MessageParser::computeCrc32(std::span<const uint8_t>(data));
+    const auto crc = MessageParser::computeCrc32(std::span<const uint8_t>(data));
     REQUIRE(crc == 0xCBF43926);
 }
 
 TEST_CASE("Checksum8 computation")
 {
     std::array<uint8_t, 3> data = { 0x10, 0x20, 0x30 };
-    auto sum = MessageParser::computeChecksum8(std::span<const uint8_t>(data));
+    const auto sum = MessageParser::computeChecksum8(std::span<const uint8_t>(data));
     REQUIRE(sum == 0x60);
 }
 
 TEST_CASE("verifyCrc8 passes for correct CRC")
 {
     std::array<uint8_t, 3> payload = { 0x01, 0x02, 0x03 };
-    auto expected_crc = MessageParser::computeCrc8(std::span<const uint8_t>(payload));
+    const auto expected_crc = MessageParser::computeCrc8(std::span<const uint8_t>(payload));
     std::array<uint8_t, 4> msg = { 0x01, 0x02, 0x03, expected_crc };
-    auto result = MessageParser::verifyCrc8<0, 3, 3>(msg);
+    const auto result = MessageParser::verifyCrc8<0, 3, 3>(msg);
     REQUIRE(result.has_value());
 }
 
 TEST_CASE("verifyCrc8 fails for incorrect CRC")
 {
-    std::array<uint8_t, 4> msg = { 0x01, 0x02, 0x03, 0x00 };// wrong CRC
+    constexpr std::array<uint8_t, 4> msg = { 0x01, 0x02, 0x03, 0x00 };// wrong CRC
     auto result = MessageParser::verifyCrc8<0, 3, 3>(msg);
     REQUIRE_FALSE(result.has_value());
     REQUIRE(result.error() == FieldRanges::ParseError::ChecksumMismatch);

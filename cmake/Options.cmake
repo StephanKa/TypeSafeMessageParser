@@ -13,6 +13,7 @@ OPTION(ENABLE_INCLUDE_WHAT_YOU_USE "Enable static analysis with include-what-you
 # tooling
 OPTION(ENABLE_CACHE "Enable cache if available" ON)
 OPTION(ENABLE_DOXYGEN "Enable doxygen doc builds of source" OFF)
+OPTION(ENABLE_SPHINX "Enable Sphinx doc builds from docs/" ON)
 
 # Sanitizers
 OPTION(ENABLE_SANITIZER_UNDEFINED_BEHAVIOR "Enable undefined behavior sanitizer" OFF)

@@ -30,6 +30,8 @@ Added
 
 - **``std::format`` integration** — ``std::formatter<ParseError>`` specialization
 - **``operator<<``** — stream ``ParseError`` to ``std::ostream``
+- **Compile-time factories** — ``makeField()`` and ``makeBitField()`` for concise field declarations
+- **Schema helpers** — ``MessageSchema`` and ``makeSchema()`` for grouped parse/validate/convertAll operations
 - **Reflection / field iteration** — ``forEachField()``, ``forEachFieldIndexed()``, ``fieldCount()``
 - **Named fields** — ``NamedFieldConfiguration`` with ``string_view`` name for debugging
 - **``std::span`` support** — all parsing functions accept ``std::span<const uint8_t>``
@@ -72,6 +74,8 @@ Added
 
 Changed
 ^^^^^^^
+
+- Default ``MinMaxRange`` for ``FieldConfiguration``/``BitFieldConfiguration``/``NamedFieldConfiguration`` now follows field type semantics (for enums: underlying type range)
 
 - ``getSize()`` and ``getMessageSize()`` are now ``consteval`` (previously ``constexpr``)
 - ``main.cpp`` uses ``std::to_underlying`` instead of ``static_cast<uint32_t>``

@@ -150,8 +150,8 @@ FieldConfiguration
        std::size_t index,
        typename FieldType,
        auto Range = FieldRanges::MinMaxRange{
-           .min = std::numeric_limits<uint32_t>::min(),
-           .max = std::numeric_limits<uint32_t>::max()
+            .min = std::numeric_limits<...>::lowest(),
+            .max = std::numeric_limits<...>::max()
        },
        ByteOrder Order = ByteOrder::BigEndian
    >
@@ -167,8 +167,79 @@ FieldConfiguration
 
 - ``index`` — Starting byte position in the message array
 - ``FieldType`` — The C++ type this field represents (``uint8_t``, ``int8_t``, ``uint16_t``, ``int16_t``, ``uint32_t``, ``int32_t``, ``float``, ``double``, or an enum)
-- ``Range`` — A ``MinMaxRange``, ``SpecificRange``, or ``CustomRange`` for validation (default: full uint32_t range)
+- ``Range`` — A ``MinMaxRange``, ``SpecificRange``, or ``CustomRange`` for validation (default: full representable range of ``FieldType``; for enums, full range of the enum's underlying type)
 - ``Order`` — Byte order for multi-byte fields (default: ``BigEndian``)
+
+Compile-time Factory Helpers
+----------------------------
+
+makeField
+^^^^^^^^^
+
+.. code-block:: cpp
+
+   template<
+      std::size_t index,
+      typename FieldType,
+      auto Range = ...,
+      ByteOrder Order = ByteOrder::BigEndian
+   >
+   consteval auto makeField();
+
+Creates and returns a ``FieldConfiguration`` at compile time.
+
+makeBitField
+^^^^^^^^^^^^
+
+.. code-block:: cpp
+
+   template<
+      std::size_t byteIdx,
+      std::size_t bitOffset,
+      std::size_t bitWidth,
+      typename FieldType,
+      auto Range = ...
+   >
+   consteval auto makeBitField();
+
+Creates and returns a ``BitFieldConfiguration`` at compile time.
+
+MessageSchema and makeSchema
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: cpp
+
+   template<IsFieldConfiguration... Fields>
+   struct MessageSchema {
+      constexpr auto convertAll(const Message& msg) const;
+      constexpr bool validate(const Message& msg) const;
+      constexpr void parse(const Message& msg) const;
+      static consteval std::size_t sizeBytes();
+   };
+
+   template<IsFieldConfiguration... Fields>
+   constexpr auto makeSchema(Fields... fields);
+
+``MessageSchema`` groups field configurations and provides schema-level wrappers
+for the existing parser functions.
+
+**Example:**
+
+.. code-block:: cpp
+
+   enum class Status : uint8_t { Ok = 0, Warn = 1, Err = 2 };
+
+   static constexpr auto status = MessageParser::makeField<0, Status,
+      FieldRanges::MinMaxRange{.min = Status::Ok, .max = Status::Err}>();
+   static constexpr auto counter = MessageParser::makeField<1, uint16_t,
+      FieldRanges::MinMaxRange{.min = uint16_t{0}, .max = uint16_t{1000}}>();
+
+   constexpr auto schema = MessageParser::makeSchema(status, counter);
+   static_assert(decltype(schema)::sizeBytes() == 3);
+
+   constexpr std::array<uint8_t, 3> msg = {0x01, 0x01, 0xF4};
+   static_assert(schema.validate(msg));
+   constexpr auto parsed = schema.convertAll(msg);
 
 BitFieldConfiguration
 ---------------------

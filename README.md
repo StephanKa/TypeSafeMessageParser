@@ -7,6 +7,8 @@ A **header-only, compile-time type-safe message parser library for C++23**. It p
 - **Header-only** — just include `MessageParser.h`, no compilation required
 - **Compile-time parsing** — all parsing and validation can be performed via `constexpr`/`consteval`, catching errors at build time instead of runtime
 - **Type-safe field mapping** — fields are declared with an explicit type (`uint8_t`, `uint16_t`, `enum`, …) and a byte index; the parser reads and casts accordingly
+- **Compile-time factory helpers** — `makeField()` and `makeBitField()` reduce boilerplate when declaring field configurations
+- **Schema builder** — `makeSchema()` creates a `MessageSchema` object with `.convertAll()`, `.validate()`, and `.parse()` convenience methods
 - **Range validation** — every field can carry a `MinMaxRange<T>` (inclusive min/max) or a `SpecificRange<V...>` (exact allowed values); validation returns `std::expected<T, ParseError>` so errors are always handled explicitly
 - **Custom validator predicates** — supply a `constexpr` lambda as a `CustomRange` to implement arbitrary validation logic (e.g., "must be a multiple of 4")
 - **Cross-field validation** — validate constraints that depend on multiple fields using `validateCrossField()` / `validateCrossFields()`
@@ -131,6 +133,9 @@ forEachField([](const auto &f) { /* process each field */ },
 | `FieldConfiguration<Index, T, Range, Order>` | Declares a field: byte index, value type, optional range constraint, optional byte order |
 | `BitFieldConfiguration<ByteIdx, BitOff, BitWidth, T, Range>` | Declares a bit-level field within a byte |
 | `NamedFieldConfiguration<Index, T, Range, Order>` | Field with an attached `string_view` name for debugging |
+| `makeField<Index, T, Range, Order>()` | Compile-time factory that returns a `FieldConfiguration` |
+| `makeBitField<ByteIdx, BitOff, BitWidth, T, Range>()` | Compile-time factory that returns a `BitFieldConfiguration` |
+| `MessageSchema<Fields...>` / `makeSchema(fields...)` | Groups fields and provides schema-level parse/validate/convertAll helpers |
 | `MinMaxRange<T>{min, max}` | Inclusive minimum/maximum range |
 | `SpecificRange<V...>{}` | Exact set of allowed values |
 | `CustomRange<T, Pred>{predicate}` | Custom validator — any `constexpr` callable returning `bool` |
@@ -146,6 +151,10 @@ forEachField([](const auto &f) { /* process each field */ },
 | `getSize<Fields...>()` | Returns the total byte size of all given fields at compile time |
 | `convertAll(msg, fields...)` | Parses all fields, returns `std::tuple` of `std::expected` results |
 | `validateMessage(msg, fields...)` | Returns `true` if all fields pass range validation |
+| `MessageSchema::convertAll(msg)` | Schema-level wrapper around `convertAll(msg, fields...)` |
+| `MessageSchema::validate(msg)` | Schema-level wrapper around `validateMessage(msg, fields...)` |
+| `MessageSchema::parse(msg)` | Schema-level wrapper around `parseMessage(msg, fields...)` |
+| `MessageSchema::sizeBytes()` | Compile-time total size of all schema fields |
 | `convertByteTypeIf(msg, field, cond)` | Conditionally parse a field; returns `nullopt` if condition is false |
 | `toUnderlying(value)` | Converts enum to underlying type using `std::to_underlying`, pass-through for non-enums |
 | `IsFieldConfiguration<T>` | Concept constraining valid field configuration types |
@@ -366,12 +375,39 @@ This produces `single_include/MessageParser.h` — a single file you can drop in
 Full Sphinx documentation with diagrams is available under `docs/`. To build:
 
 ```bash
-cd docs
 pip install -r requirements.txt
-make html
+cmake --build --preset <PRESET_NAME> --target sphinx-docs
 ```
 
 Open `docs/_build/html/index.html` in your browser.
+
+You can also build all available documentation targets (Sphinx and, when enabled, Doxygen):
+
+```bash
+cmake --build --preset <PRESET_NAME> --target docs
+```
+
+If you want Doxygen output as well, configure with:
+
+```bash
+cmake --preset <PRESET_NAME> -DENABLE_DOXYGEN=ON
+```
+
+### Publish Docs with GitHub Pages
+
+This repository includes a workflow at [.github/workflows/docs_pages.yml](.github/workflows/docs_pages.yml) that:
+
+1. Installs Python + Sphinx dependencies from `docs/requirements.txt`
+2. Builds HTML docs into `docs/_build/html`
+3. Publishes the result to GitHub Pages
+
+The workflow runs on pushes to `main` and can also be started manually.
+
+To enable Pages deployment in GitHub:
+
+1. Open repository **Settings -> Pages**
+2. Set **Source** to **GitHub Actions**
+3. Ensure the workflow has run once on `main`
 
 ## License
 
